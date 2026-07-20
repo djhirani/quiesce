@@ -12,6 +12,7 @@ export type SimulationPhase =
   | "ready_to_stop"
   | "stop_injected"
   | "survivors_evaluated"
+  | "protected_quiescent"
   | "clock_advanced"
   | "test_complete";
 

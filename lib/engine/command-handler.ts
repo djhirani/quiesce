@@ -7,8 +7,10 @@ export function handleCommand(
   command: SimulationCommand,
 ): readonly AuthorityEvent[] {
   if (command.type === "START_RUN") {
-    if (command.policy !== "vulnerable") {
-      throw new Error("Protected policy is not available in M2.");
+    if (command.policy !== scenario.policy) {
+      throw new Error(
+        "Command policy does not match the fresh runtime policy.",
+      );
     }
     return [scenario.startRun()];
   }

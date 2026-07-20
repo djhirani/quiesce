@@ -5,9 +5,11 @@ import type {
 } from "@/lib/domain/events";
 import { AppendOnlyEventStore } from "./event-store";
 import { LogicalClock } from "./logical-clock";
-import { applyVulnerableStop } from "./policies";
-import { projectStatuses } from "./projectors";
+import { applyProtectedStop, applyVulnerableStop } from "./policies";
+import { evaluateCommitFence } from "./commit-fence";
+import type { SimulationPolicy } from "@/lib/domain/commands";
 import {
+  CLOUD_CLEANUP_AUTHORITY_EPOCH,
   cloudCleanupEntities as entities,
   edge,
   entityIds,
@@ -16,10 +18,20 @@ import {
 export class CloudCleanupScenario {
   readonly #store: AppendOnlyEventStore;
   readonly #clock: LogicalClock;
+  readonly #policy: SimulationPolicy;
 
-  constructor(store: AppendOnlyEventStore, clock: LogicalClock) {
+  constructor(
+    store: AppendOnlyEventStore,
+    clock: LogicalClock,
+    policy: SimulationPolicy = "vulnerable",
+  ) {
     this.#store = store;
     this.#clock = clock;
+    this.#policy = policy;
+  }
+
+  get policy(): SimulationPolicy {
+    return this.#policy;
   }
 
   startRun(): AuthorityEvent {
@@ -30,7 +42,7 @@ export class CloudCleanupScenario {
       actorEntity: entities.human,
       entity: entities.root,
       edge: edge("owns", entityIds.human, entityIds.root),
-      policy: "vulnerable",
+      canonicalFixture: "cloud-cleanup-v1",
     });
   }
 
@@ -166,18 +178,22 @@ export class CloudCleanupScenario {
   }
 
   injectStop(): readonly AuthorityEvent[] {
-    return applyVulnerableStop(this.#store, this.#clock);
+    return this.#policy === "protected"
+      ? applyProtectedStop(this.#store, this.#clock)
+      : applyVulnerableStop(this.#store, this.#clock);
   }
 
   advanceToHorizon(horizonMs: number): readonly AuthorityEvent[] {
     const history = this.#store.history();
-    if (history.at(-1)?.type !== "AGENT_STOPPED") {
+    const expectedBoundary =
+      this.#policy === "protected" ? "QUIESCENCE_REACHED" : "AGENT_STOPPED";
+    if (history.at(-1)?.type !== expectedBoundary) {
       throw new Error(
-        "Clock advancement requires a completed vulnerable STOP.",
+        `Clock advancement requires a completed ${this.#policy} STOP.`,
       );
     }
     if (horizonMs - this.#clock.now() !== 300_000) {
-      throw new Error("M3 clock advancement must be exactly 300000 ms.");
+      throw new Error("Logical clock advancement must be exactly 300000 ms.");
     }
 
     const stopped = history.at(-1)!;
@@ -188,10 +204,17 @@ export class CloudCleanupScenario {
       subjectId: null,
       parentSubjectId: null,
       causedByEventId: stopped.eventId,
-      authorityEpoch: null,
+      authorityEpoch:
+        this.#policy === "protected"
+          ? CLOUD_CLEANUP_AUTHORITY_EPOCH + 1
+          : CLOUD_CLEANUP_AUTHORITY_EPOCH,
       issuedAuthorityEpoch: null,
       payload: { deltaMs: 300_000, horizonMs, simulated: true },
     });
+    if (this.#policy === "protected") {
+      return this.#attemptProtectedEffect(clockAdvanced);
+    }
+
     const jobTriggered = this.#append(
       "JOB_TRIGGERED",
       entityIds.job,
@@ -205,11 +228,6 @@ export class CloudCleanupScenario {
       },
       clockAdvanced.eventId,
     );
-    if (
-      projectStatuses(this.#store.history())[entityIds.credential] !== "valid"
-    ) {
-      throw new Error("Delegated credential is not valid.");
-    }
     const attempted = this.#append(
       "EFFECT_ATTEMPTED",
       entityIds.retry,
@@ -225,6 +243,11 @@ export class CloudCleanupScenario {
       },
       jobTriggered.eventId,
     );
+    const fence = evaluateCommitFence(
+      this.#store.history(),
+      CLOUD_CLEANUP_AUTHORITY_EPOCH,
+    );
+    if (!fence.mayCommit) throw new Error("Material effect commit was fenced.");
     this.#append(
       "EFFECT_COMMITTED",
       entityIds.retry,
@@ -244,6 +267,66 @@ export class CloudCleanupScenario {
     return this.#store.history();
   }
 
+  #attemptProtectedEffect(
+    clockAdvanced: AuthorityEvent,
+  ): readonly AuthorityEvent[] {
+    const attempted = this.#append(
+      "EFFECT_ATTEMPTED",
+      entityIds.retry,
+      entityIds.backupQueue,
+      entityIds.retry,
+      {
+        credentialId: entityIds.credential,
+        issuedAuthorityEpoch: CLOUD_CLEANUP_AUTHORITY_EPOCH,
+        targetType: "production_backup",
+        targetId: "production-backup-archive-01",
+        material: true,
+        simulated: true,
+      },
+      clockAdvanced.eventId,
+    );
+    const fence = evaluateCommitFence(
+      this.#store.history(),
+      CLOUD_CLEANUP_AUTHORITY_EPOCH,
+    );
+    if (fence.mayCommit || fence.rejectionReason !== "stale_authority") {
+      throw new Error("Protected delayed effect must be rejected as stale.");
+    }
+    const stale = this.#append(
+      "STALE_AUTHORITY_REJECTED",
+      entityIds.root,
+      entityIds.backupQueue,
+      entityIds.retry,
+      {
+        ...fence,
+        targetType: "production_backup",
+        targetId: "production-backup-archive-01",
+        material: true,
+        simulated: true,
+      },
+      attempted.eventId,
+    );
+    this.#append(
+      "EFFECT_REJECTED",
+      entityIds.root,
+      entityIds.backupEffect,
+      entityIds.backupQueue,
+      {
+        entity: { ...entities.backupEffect, status: "rejected" },
+        edge: edge("cancels", entityIds.backupQueue, entityIds.backupEffect),
+        reason: "stale_authority",
+        issuedAuthorityEpoch: CLOUD_CLEANUP_AUTHORITY_EPOCH,
+        currentAuthorityEpoch: CLOUD_CLEANUP_AUTHORITY_EPOCH + 1,
+        targetType: "production_backup",
+        targetId: "production-backup-archive-01",
+        material: true,
+        simulated: true,
+      },
+      stale.eventId,
+    );
+    return this.#store.history();
+  }
+
   advanceClock(deltaMs: number): readonly AuthorityEvent[] {
     return this.advanceToHorizon(this.#clock.now() + deltaMs);
   }
@@ -256,6 +339,13 @@ export class CloudCleanupScenario {
     payload: AuthorityEvent["payload"],
     causedByEventId: string | null = null,
   ): AuthorityEvent {
+    const currentAuthorityEpoch =
+      this.#policy === "protected" &&
+      this.#store
+        .history()
+        .some((event) => event.type === "AUTHORITY_EPOCH_ADVANCED")
+        ? CLOUD_CLEANUP_AUTHORITY_EPOCH + 1
+        : CLOUD_CLEANUP_AUTHORITY_EPOCH;
     const logicalTimeMs =
       this.#store.history().length === 0
         ? this.#clock.now()
@@ -267,8 +357,11 @@ export class CloudCleanupScenario {
       subjectId,
       parentSubjectId,
       causedByEventId,
-      authorityEpoch: null,
-      issuedAuthorityEpoch: null,
+      authorityEpoch: currentAuthorityEpoch,
+      issuedAuthorityEpoch:
+        payload.material === true || payload.entity?.authorityEpoch != null
+          ? CLOUD_CLEANUP_AUTHORITY_EPOCH
+          : null,
       payload,
     });
   }

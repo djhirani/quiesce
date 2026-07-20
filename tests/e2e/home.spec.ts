@@ -84,5 +84,35 @@ test("starts the deterministic scenario and renders event evidence", async ({
   await expect(effect).toHaveAttribute("aria-pressed", "true");
   await expect(topology.locator(".topology-node--selected")).toHaveCount(5);
   await expect(page.locator(".ledger tr.is-cited")).toHaveCount(4);
+  await page.getByRole("button", { name: "Replay protected" }).click();
+  await expect(
+    page.getByText("SEAL → REVOKE → DRAIN → PROVE", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("ZERO RESIDUAL AUTHORITY", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("cell", { name: "COMMIT_GATE_SEALED" }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: /advance logical time \+5 min/i })
+    .click();
+  await expect(
+    page.getByText("STALE_AUTHORITY_REJECTED", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("EFFECT_REJECTED", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("QUIESCENCE TEST: PASSED", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("420 MS", { exact: true })).toHaveCount(3);
+  await expect(
+    page.getByRole("heading", { name: "Vulnerable versus protected" }),
+  ).toBeVisible();
+  await expect(page.getByText("EFFECT_COMMITTED", { exact: true })).toHaveCount(
+    0,
+  );
+  await expect(topology.locator(".topology-node--blocked")).toHaveCount(5);
   await expect(page.locator("body")).toHaveCSS("overflow-x", "hidden");
 });

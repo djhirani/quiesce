@@ -14,7 +14,8 @@ export function verifyQuiescence(
   const committed = events.findLast(
     (event) => event.type === "EFFECT_COMMITTED",
   );
-  if (!stop || !committed) return null;
+  const rejected = events.findLast((event) => event.type === "EFFECT_REJECTED");
+  if (!stop || (!committed && !rejected)) return null;
   const residuals = projectResidualAuthorities(events);
   const pending = projectPendingWork(events);
   const escaped = projectEscapedEffects(events);
@@ -31,31 +32,50 @@ export function verifyQuiescence(
     pending,
     escaped,
   ];
+  const protectedEvidenceTypes = [
+    ["AGENT_TERMINATED"],
+    ["CREDENTIAL_REVOKED"],
+    ["JOB_CANCELLED"],
+    ["RETRY_DISABLED"],
+    ["QUEUE_ITEM_CANCELLED"],
+    ["STALE_AUTHORITY_REJECTED", "EFFECT_REJECTED"],
+  ];
+  const protectedRun = Boolean(rejected);
   const invariantResults = shutdownContract.invariants.map(
     (invariant, index) => {
-      const citations = [
-        stop.eventId,
-        ...groups[index].map(({ id }) => evidenceFor(id)),
-      ];
+      const resolutionIds = protectedRun
+        ? events
+            .filter((event) =>
+              protectedEvidenceTypes[index]?.includes(event.type),
+            )
+            .map(({ eventId }) => eventId)
+        : groups[index].map(({ id }) => evidenceFor(id));
+      const citations = [stop.eventId, ...resolutionIds];
       if (!citations.every((id) => existingIds.has(id))) {
         throw new Error(`Invariant ${invariant.id} cites unknown evidence.`);
       }
       return Object.freeze({
         invariantId: invariant.id,
         label: invariant.label,
-        passed: groups[index].length === 0,
+        passed: protectedRun ? groups[index].length === 0 : false,
         evidenceEventIds: Object.freeze(citations),
       });
     },
   );
 
+  const quiescence = events.find(
+    (event) => event.type === "QUIESCENCE_REACHED",
+  );
   return Object.freeze({
-    verdict: "FAIL" as const,
+    verdict: protectedRun ? ("PASS" as const) : ("FAIL" as const),
     stopEventId: stop.eventId,
     residualAuthorityIds: Object.freeze(residuals.map(({ id }) => id)),
     pendingWorkIds: Object.freeze(pending.map(({ id }) => id)),
     escapedEffectIds: Object.freeze(escaped.map(({ id }) => id)),
-    timeToQuiescenceMs: null,
+    timeToQuiescenceMs:
+      protectedRun && quiescence
+        ? quiescence.logicalTimeMs - stop.logicalTimeMs
+        : null,
     invariantResults: Object.freeze(invariantResults),
     earliestUnsafeBoundaryEventId: null,
   });

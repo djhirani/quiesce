@@ -11,11 +11,21 @@ export type AuthorityEventType =
   | "ACTION_QUEUED"
   | "SCENARIO_READY"
   | "STOP_INJECTED"
+  | "AUTHORITY_EPOCH_ADVANCED"
+  | "COMMIT_GATE_SEALED"
   | "AGENT_STOPPED"
+  | "AGENT_TERMINATED"
+  | "CREDENTIAL_REVOKED"
+  | "JOB_CANCELLED"
+  | "QUEUE_ITEM_CANCELLED"
+  | "RETRY_DISABLED"
   | "CLOCK_ADVANCED"
   | "JOB_TRIGGERED"
   | "EFFECT_ATTEMPTED"
-  | "EFFECT_COMMITTED";
+  | "STALE_AUTHORITY_REJECTED"
+  | "EFFECT_COMMITTED"
+  | "EFFECT_REJECTED"
+  | "QUIESCENCE_REACHED";
 
 export interface AuthorityEventPayload extends Record<string, unknown> {
   readonly simulated?: true;

@@ -51,7 +51,10 @@ export function projectPhase(
   events: readonly AuthorityEvent[],
 ): SimulationPhase {
   if (events.length === 0) return "idle";
-  if (events.at(-1)?.type === "EFFECT_COMMITTED") return "test_complete";
+  if (
+    ["EFFECT_COMMITTED", "EFFECT_REJECTED"].includes(events.at(-1)?.type ?? "")
+  )
+    return "test_complete";
   if (
     ["CLOCK_ADVANCED", "JOB_TRIGGERED", "EFFECT_ATTEMPTED"].includes(
       events.at(-1)?.type ?? "",
@@ -59,6 +62,8 @@ export function projectPhase(
   )
     return "clock_advanced";
   if (events.at(-1)?.type === "AGENT_STOPPED") return "survivors_evaluated";
+  if (events.at(-1)?.type === "QUIESCENCE_REACHED")
+    return "protected_quiescent";
   if (events.at(-1)?.type === "STOP_INJECTED") return "stop_injected";
   if (events.at(-1)?.type === "SCENARIO_READY") return "ready_to_stop";
   return "building_authority";
@@ -72,6 +77,7 @@ export function projectNextLegalCommand(
   if (phase === "building_authority") return "ADVANCE_TO_READY";
   if (phase === "ready_to_stop") return "INJECT_STOP";
   if (phase === "survivors_evaluated") return "ADVANCE_CLOCK";
+  if (phase === "protected_quiescent") return "ADVANCE_CLOCK";
   return null;
 }
 

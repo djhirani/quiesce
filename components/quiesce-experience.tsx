@@ -7,7 +7,7 @@ import { Wordmark } from "@/components/brand/wordmark";
 import { WorkspaceShell } from "@/components/workspace/workspace-shell";
 
 export function QuiesceExperience() {
-  const [adapter] = useState(() => new SimulatedRuntimeAdapter());
+  const [adapter, setAdapter] = useState(() => new SimulatedRuntimeAdapter());
   const [snapshot, setSnapshot] = useState<RuntimeSnapshot>(() =>
     adapter.inspectRuntime(),
   );
@@ -15,6 +15,8 @@ export function QuiesceExperience() {
     "idle",
   );
   const [selectedEffectId, setSelectedEffectId] = useState<string | null>(null);
+  const [vulnerableResult, setVulnerableResult] =
+    useState<RuntimeSnapshot | null>(null);
 
   async function startRun() {
     if (snapshot.nextLegalCommand !== "START_RUN") return;
@@ -40,6 +42,19 @@ export function QuiesceExperience() {
     if (snapshot.nextLegalCommand !== "ADVANCE_CLOCK") return;
     await adapter.advanceLogicalTime(300_000);
     setSnapshot(adapter.inspectRuntime());
+  }
+
+  async function replayProtected() {
+    if (snapshot.policy !== "vulnerable" || snapshot.result?.verdict !== "FAIL")
+      return;
+    setVulnerableResult(snapshot);
+    const protectedAdapter = new SimulatedRuntimeAdapter("protected");
+    await protectedAdapter.startScenario();
+    await protectedAdapter.injectStop();
+    setAdapter(protectedAdapter);
+    setSnapshot(protectedAdapter.inspectRuntime());
+    setSelectedEffectId(null);
+    setStopStage("revealed");
   }
 
   const ready = snapshot.phase === "ready_to_stop";
@@ -88,13 +103,19 @@ export function QuiesceExperience() {
             <div className="run-button run-button--state" role="status">
               <span>
                 {snapshot.result
-                  ? "Quiescence test failed"
+                  ? `Quiescence test ${snapshot.result.verdict === "PASS" ? "passed" : "failed"}`
                   : ready
                     ? "Scenario ready"
                     : "STOP recorded"}
               </span>
               <span aria-hidden="true">
-                {snapshot.result ? "!" : ready ? "✓" : "■"}
+                {snapshot.result
+                  ? snapshot.result.verdict === "PASS"
+                    ? "✓"
+                    : "!"
+                  : ready
+                    ? "✓"
+                    : "■"}
               </span>
             </div>
           )}
@@ -109,12 +130,16 @@ export function QuiesceExperience() {
         stopStage={stopStage}
         onInjectStop={injectStop}
         onAdvanceClock={advanceClock}
+        onReplayProtected={replayProtected}
+        vulnerableResult={vulnerableResult}
         selectedEffectId={selectedEffectId}
         onSelectEffect={setSelectedEffectId}
       />
       <p className="sr-only" aria-live="polite">
         {snapshot.result
-          ? `Quiescence test failed. ${snapshot.result.escapedEffectIds.length} material simulated effect committed after STOP.`
+          ? snapshot.result.verdict === "PASS"
+            ? `Protected replay passed. No residual authority remains. Time to quiescence was ${snapshot.result.timeToQuiescenceMs} milliseconds.`
+            : `Quiescence test failed. ${snapshot.result.escapedEffectIds.length} material simulated effect committed after STOP.`
           : stopStage === "revealed"
             ? `Stop injected. Root agent stopped. ${snapshot.residualAuthorities.length} residual authorities remain. ${snapshot.pendingWork.length} pending operations remain queued.`
             : ""}

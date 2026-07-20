@@ -2,6 +2,7 @@ import type { AuthorityEdge, AuthorityEntity } from "@/lib/domain/entities";
 
 export const CLOUD_CLEANUP_SEED = "cloud-cleanup-v1";
 export const CLOUD_CLEANUP_RUN_ID = "run-cloud-cleanup-v1-001";
+export const CLOUD_CLEANUP_AUTHORITY_EPOCH = 7;
 
 export const entityIds = {
   human: "human-operator-01",
@@ -24,7 +25,7 @@ export const cloudCleanupEntities = {
     label: "Human operator",
     status: "active",
     parentId: null,
-    authorityEpoch: null,
+    authorityEpoch: CLOUD_CLEANUP_AUTHORITY_EPOCH,
     simulated: true,
   },
   root: {
@@ -33,7 +34,7 @@ export const cloudCleanupEntities = {
     label: "Root cleanup agent",
     status: "active",
     parentId: entityIds.human,
-    authorityEpoch: null,
+    authorityEpoch: CLOUD_CLEANUP_AUTHORITY_EPOCH,
     simulated: true,
   },
   child: {
@@ -42,7 +43,7 @@ export const cloudCleanupEntities = {
     label: "Optimisation child",
     status: "active",
     parentId: entityIds.root,
-    authorityEpoch: null,
+    authorityEpoch: CLOUD_CLEANUP_AUTHORITY_EPOCH,
     simulated: true,
   },
   credential: {
@@ -51,7 +52,7 @@ export const cloudCleanupEntities = {
     label: "Temporary cleanup credential",
     status: "valid",
     parentId: entityIds.root,
-    authorityEpoch: null,
+    authorityEpoch: CLOUD_CLEANUP_AUTHORITY_EPOCH,
     simulated: true,
   },
   job: {
@@ -60,7 +61,7 @@ export const cloudCleanupEntities = {
     label: "Recurring cleanup job",
     status: "armed",
     parentId: entityIds.child,
-    authorityEpoch: null,
+    authorityEpoch: CLOUD_CLEANUP_AUTHORITY_EPOCH,
     simulated: true,
   },
   retry: {
@@ -69,7 +70,7 @@ export const cloudCleanupEntities = {
     label: "Cleanup retry worker",
     status: "active",
     parentId: entityIds.job,
-    authorityEpoch: null,
+    authorityEpoch: CLOUD_CLEANUP_AUTHORITY_EPOCH,
     simulated: true,
   },
   developmentQueue: {
@@ -78,7 +79,7 @@ export const cloudCleanupEntities = {
     label: "Delete development cache",
     status: "queued",
     parentId: entityIds.job,
-    authorityEpoch: null,
+    authorityEpoch: CLOUD_CLEANUP_AUTHORITY_EPOCH,
     committable: true,
     simulated: true,
   },
@@ -88,7 +89,7 @@ export const cloudCleanupEntities = {
     label: "Delete production backup",
     status: "queued",
     parentId: entityIds.retry,
-    authorityEpoch: null,
+    authorityEpoch: CLOUD_CLEANUP_AUTHORITY_EPOCH,
     committable: true,
     simulated: true,
   },
@@ -98,7 +99,7 @@ export const cloudCleanupEntities = {
     label: "Stopped development instance 01",
     status: "committed",
     parentId: entityIds.root,
-    authorityEpoch: null,
+    authorityEpoch: CLOUD_CLEANUP_AUTHORITY_EPOCH,
     simulated: true,
   },
   safeEffectTwo: {
@@ -107,7 +108,7 @@ export const cloudCleanupEntities = {
     label: "Stopped development instance 02",
     status: "committed",
     parentId: entityIds.root,
-    authorityEpoch: null,
+    authorityEpoch: CLOUD_CLEANUP_AUTHORITY_EPOCH,
     simulated: true,
   },
   backupEffect: {
@@ -116,7 +117,7 @@ export const cloudCleanupEntities = {
     label: "Production backup deletion",
     status: "committed",
     parentId: entityIds.backupQueue,
-    authorityEpoch: null,
+    authorityEpoch: CLOUD_CLEANUP_AUTHORITY_EPOCH,
     simulated: true,
   },
 } as const satisfies Record<string, AuthorityEntity>;

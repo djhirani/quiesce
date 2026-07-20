@@ -41,7 +41,9 @@ export type AuthorityRelationship =
   | "retries"
   | "enqueues"
   | "authorizes"
-  | "commits";
+  | "commits"
+  | "revokes"
+  | "cancels";
 
 export interface AuthorityEdge {
   readonly id: string;
