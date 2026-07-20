@@ -22,5 +22,44 @@ test("starts the deterministic scenario and renders event evidence", async ({
   ).toBeVisible();
   await expect(page.getByText("QUEUED", { exact: true }).last()).toBeVisible();
   await expect(page.getByText("STOP_INJECTED", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Inject STOP", exact: true }).click();
+  await expect(
+    page.getByText("STOP did not propagate", { exact: true }),
+  ).toBeVisible();
+  const topology = page.getByLabel("Current authority topology");
+  await expect(
+    topology
+      .locator(".topology-node")
+      .filter({ hasText: "Root cleanup agent" }),
+  ).toContainText("STOPPED");
+  await expect(
+    topology
+      .locator(".topology-node")
+      .filter({ hasText: "Optimisation child" }),
+  ).toContainText("ACTIVE");
+  await expect(
+    topology
+      .locator(".topology-node")
+      .filter({ hasText: "Temporary cleanup credential" }),
+  ).toContainText("VALID");
+  await expect(
+    topology
+      .locator(".topology-node")
+      .filter({ hasText: "Recurring cleanup job" }),
+  ).toContainText("ARMED");
+  await expect(
+    topology
+      .locator(".topology-node")
+      .filter({ hasText: "Cleanup retry worker" }),
+  ).toContainText("ACTIVE");
+  await expect(
+    page.getByText("QUEUED · COMMITTABLE", { exact: true }),
+  ).toHaveCount(2);
+  await expect(
+    page.getByRole("button", { name: /advance logical time \+5 min/i }),
+  ).toBeVisible();
+  await expect(page.getByText("EFFECT_COMMITTED", { exact: true })).toHaveCount(
+    0,
+  );
   await expect(page.locator("body")).toHaveCSS("overflow-x", "hidden");
 });

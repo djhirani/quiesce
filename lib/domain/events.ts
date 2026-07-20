@@ -9,7 +9,9 @@ export type AuthorityEventType =
   | "JOB_SCHEDULED"
   | "RETRY_ENABLED"
   | "ACTION_QUEUED"
-  | "SCENARIO_READY";
+  | "SCENARIO_READY"
+  | "STOP_INJECTED"
+  | "AGENT_STOPPED";
 
 export interface AuthorityEventPayload extends Record<string, unknown> {
   readonly simulated?: true;

@@ -9,7 +9,10 @@ import {
   projectEntities,
   projectGraph,
   projectNextLegalCommand,
+  projectPendingWork,
   projectPhase,
+  projectResidualAuthorities,
+  projectShutdownInvariants,
   projectStatuses,
 } from "@/lib/engine/projectors";
 import { CloudCleanupScenario } from "@/lib/engine/scenario";
@@ -35,12 +38,12 @@ export class SimulatedRuntimeAdapter implements AgentRuntimeAdapter {
   }
 
   async injectStop(): Promise<void> {
-    throw new Error("STOP is not implemented in M1.");
+    handleCommand(this.#scenario, { type: "INJECT_STOP" });
   }
 
   async advanceLogicalTime(deltaMs: number): Promise<void> {
     void deltaMs;
-    throw new Error("Logical-time advancement is not implemented in M1.");
+    throw new Error("Logical-time advancement is not implemented in M2.");
   }
 
   inspectRuntime(): RuntimeSnapshot {
@@ -56,6 +59,9 @@ export class SimulatedRuntimeAdapter implements AgentRuntimeAdapter {
       entities: projectEntities(events),
       edges: graph.edges,
       statuses: projectStatuses(events),
+      residualAuthorities: projectResidualAuthorities(events),
+      pendingWork: projectPendingWork(events),
+      invariantResults: projectShutdownInvariants(events),
     });
   }
 }

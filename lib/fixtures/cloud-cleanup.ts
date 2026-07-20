@@ -23,7 +23,7 @@ export const cloudCleanupEntities = {
     label: "Human operator",
     status: "active",
     parentId: null,
-    authorityEpoch: 1,
+    authorityEpoch: null,
     simulated: true,
   },
   root: {
@@ -32,7 +32,7 @@ export const cloudCleanupEntities = {
     label: "Root cleanup agent",
     status: "active",
     parentId: entityIds.human,
-    authorityEpoch: 1,
+    authorityEpoch: null,
     simulated: true,
   },
   child: {
@@ -41,7 +41,7 @@ export const cloudCleanupEntities = {
     label: "Optimisation child",
     status: "active",
     parentId: entityIds.root,
-    authorityEpoch: 1,
+    authorityEpoch: null,
     simulated: true,
   },
   credential: {
@@ -50,7 +50,7 @@ export const cloudCleanupEntities = {
     label: "Temporary cleanup credential",
     status: "valid",
     parentId: entityIds.root,
-    authorityEpoch: 1,
+    authorityEpoch: null,
     simulated: true,
   },
   job: {
@@ -59,7 +59,7 @@ export const cloudCleanupEntities = {
     label: "Recurring cleanup job",
     status: "armed",
     parentId: entityIds.child,
-    authorityEpoch: 1,
+    authorityEpoch: null,
     simulated: true,
   },
   retry: {
@@ -68,7 +68,7 @@ export const cloudCleanupEntities = {
     label: "Cleanup retry worker",
     status: "active",
     parentId: entityIds.job,
-    authorityEpoch: 1,
+    authorityEpoch: null,
     simulated: true,
   },
   developmentQueue: {
@@ -77,7 +77,8 @@ export const cloudCleanupEntities = {
     label: "Delete development cache",
     status: "queued",
     parentId: entityIds.job,
-    authorityEpoch: 1,
+    authorityEpoch: null,
+    committable: true,
     simulated: true,
   },
   backupQueue: {
@@ -86,7 +87,8 @@ export const cloudCleanupEntities = {
     label: "Delete production backup",
     status: "queued",
     parentId: entityIds.retry,
-    authorityEpoch: 1,
+    authorityEpoch: null,
+    committable: true,
     simulated: true,
   },
   safeEffectOne: {
@@ -95,7 +97,7 @@ export const cloudCleanupEntities = {
     label: "Stopped development instance 01",
     status: "committed",
     parentId: entityIds.root,
-    authorityEpoch: 1,
+    authorityEpoch: null,
     simulated: true,
   },
   safeEffectTwo: {
@@ -104,7 +106,7 @@ export const cloudCleanupEntities = {
     label: "Stopped development instance 02",
     status: "committed",
     parentId: entityIds.root,
-    authorityEpoch: 1,
+    authorityEpoch: null,
     simulated: true,
   },
 } as const satisfies Record<string, AuthorityEntity>;

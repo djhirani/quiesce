@@ -29,6 +29,7 @@ export interface AuthorityEntity {
   readonly status: RuntimeStatus;
   readonly parentId: string | null;
   readonly authorityEpoch: number | null;
+  readonly committable?: boolean;
   readonly simulated: true;
 }
 

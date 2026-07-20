@@ -35,7 +35,7 @@ describe("cloud-cleanup scenario", () => {
     ]);
     expect(snapshot.scenarioSeed).toBe("cloud-cleanup-v1");
     expect(snapshot.phase).toBe("ready_to_stop");
-    expect(snapshot.nextLegalCommand).toBeNull();
+    expect(snapshot.nextLegalCommand).toBe("INJECT_STOP");
   });
 
   it("is byte-for-byte deterministic across fresh repeated runs", async () => {

@@ -8,9 +8,15 @@ export function handleCommand(
 ): readonly AuthorityEvent[] {
   if (command.type === "START_RUN") {
     if (command.policy !== "vulnerable") {
-      throw new Error("Protected policy is not available in M1.");
+      throw new Error("Protected policy is not available in M2.");
     }
     return [scenario.startRun()];
   }
-  return scenario.advanceToReady();
+  if (command.type === "ADVANCE_TO_READY") {
+    return scenario.advanceToReady();
+  }
+  if (command.type === "INJECT_STOP") {
+    return scenario.injectStop();
+  }
+  throw new Error("Logical-time advancement is not implemented in M2.");
 }

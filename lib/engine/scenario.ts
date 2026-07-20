@@ -5,6 +5,7 @@ import type {
 } from "@/lib/domain/events";
 import { AppendOnlyEventStore } from "./event-store";
 import { LogicalClock } from "./logical-clock";
+import { applyVulnerableStop } from "./policies";
 import {
   cloudCleanupEntities as entities,
   edge,
@@ -163,6 +164,10 @@ export class CloudCleanupScenario {
     return this.#store.history();
   }
 
+  injectStop(): readonly AuthorityEvent[] {
+    return applyVulnerableStop(this.#store, this.#clock);
+  }
+
   #append(
     type: AuthorityEvent["type"],
     actorId: string,
@@ -182,7 +187,7 @@ export class CloudCleanupScenario {
       subjectId,
       parentSubjectId,
       causedByEventId,
-      authorityEpoch: 1,
+      authorityEpoch: null,
       issuedAuthorityEpoch: null,
       payload,
     });

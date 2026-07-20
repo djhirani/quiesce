@@ -1,5 +1,6 @@
 export interface InvariantResult {
   readonly invariantId: string;
+  readonly label?: string;
   readonly passed: boolean;
   readonly evidenceEventIds: readonly string[];
 }

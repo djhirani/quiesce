@@ -1,4 +1,5 @@
 import type { RuntimeSnapshot } from "@/lib/adapters/runtime-adapter";
+import type { CSSProperties } from "react";
 
 const regions = [
   ["01", "Quiescence Trace"],
@@ -15,9 +16,33 @@ const kindLabels = {
   effect: "Effect",
 } as const;
 
-export function WorkspaceShell({ snapshot }: { snapshot: RuntimeSnapshot }) {
+const roleLabels: Record<string, string> = {
+  "human-operator-01": "Origin",
+  "agent-cleanup-root-01": "Root",
+  "agent-optimisation-child-01": "Child",
+  "credential-cleanup-01": "Credential",
+  "job-recurring-cleanup-01": "Job",
+  "retry-cleanup-01": "Retry",
+};
+
+export function WorkspaceShell({
+  snapshot,
+  stopStage,
+  onInjectStop,
+}: {
+  snapshot: RuntimeSnapshot;
+  stopStage: "idle" | "freeze" | "revealed";
+  onInjectStop: () => void;
+}) {
   const started = snapshot.events.length > 0;
   const ready = snapshot.phase === "ready_to_stop";
+  const stopped = snapshot.phase === "survivors_evaluated";
+  const survivorsVisible = stopped && stopStage === "revealed";
+  const stopEvent = snapshot.events.find(
+    (event) => event.type === "STOP_INJECTED",
+  );
+  const residualIds = new Set(snapshot.residualAuthorities.map(({ id }) => id));
+  const pendingIds = new Set(snapshot.pendingWork.map(({ id }) => id));
   const graphEntities = snapshot.entities.filter(
     (entity) => entity.kind !== "effect",
   );
@@ -32,7 +57,12 @@ export function WorkspaceShell({ snapshot }: { snapshot: RuntimeSnapshot }) {
         <div>
           <span className="micro-label">Test instrument</span>
           <h2 id="workspace-title">
-            Cloud cleanup / {ready ? "ready to stop" : "standby"}
+            Cloud cleanup /{" "}
+            {stopped
+              ? "survivors detected"
+              : ready
+                ? "ready to stop"
+                : "standby"}
           </h2>
         </div>
         <div className="workspace__meta">
@@ -54,15 +84,23 @@ export function WorkspaceShell({ snapshot }: { snapshot: RuntimeSnapshot }) {
             <div>
               <h3 id={`region-${index}`}>{title}</h3>
               <p>
-                {started
-                  ? "No shutdown evidence recorded in this milestone."
-                  : title === "Quiescence Trace"
-                    ? "Recorded activity will appear here when a test begins."
-                    : "Tested authority boundaries will appear after a sweep."}
+                {stopEvent && title === "Quiescence Trace"
+                  ? "STOP recorded. No post-STOP effect has occurred."
+                  : started
+                    ? "No shutdown evidence recorded yet."
+                    : title === "Quiescence Trace"
+                      ? "Recorded activity will appear here when a test begins."
+                      : "Tested authority boundaries will appear after a sweep."}
               </p>
             </div>
-            <div className="signal-line" aria-hidden="true">
+            <div
+              className={`signal-line ${stopEvent && title === "Quiescence Trace" ? "signal-line--stopped" : ""}`}
+              aria-hidden="true"
+            >
               <span />
+              {stopEvent && title === "Quiescence Trace" ? (
+                <b>STOP · {stopEvent.eventId}</b>
+              ) : null}
             </div>
           </section>
         ))}
@@ -75,14 +113,24 @@ export function WorkspaceShell({ snapshot }: { snapshot: RuntimeSnapshot }) {
             <h3 id="graph-title">Authority topology</h3>
           </div>
           {started ? (
-            <div className="topology" aria-label="Current authority topology">
+            <div
+              className={`topology ${stopStage === "freeze" ? "topology--frozen" : ""}`}
+              aria-label="Current authority topology"
+            >
               <ol className="topology__nodes">
                 {graphEntities.map((entity) => (
                   <li
-                    className={`topology-node topology-node--${entity.kind}`}
+                    className={`topology-node topology-node--${entity.kind} ${entity.status === "stopped" ? "topology-node--stopped" : ""} ${survivorsVisible && residualIds.has(entity.id) ? "topology-node--survivor" : ""} ${survivorsVisible && pendingIds.has(entity.id) ? "topology-node--pending" : ""}`}
                     key={entity.id}
+                    style={
+                      {
+                        "--reveal-depth": graphEntities.indexOf(entity),
+                      } as CSSProperties
+                    }
                   >
-                    <span>{kindLabels[entity.kind]}</span>
+                    <span>
+                      {roleLabels[entity.id] ?? kindLabels[entity.kind]}
+                    </span>
                     <strong>{entity.label}</strong>
                     <code>{entity.status.toUpperCase()}</code>
                   </li>
@@ -98,7 +146,17 @@ export function WorkspaceShell({ snapshot }: { snapshot: RuntimeSnapshot }) {
                       !edge.targetId.startsWith("effect-development-instance"),
                   )
                   .map((edge) => (
-                    <li key={edge.id}>
+                    <li
+                      className={
+                        survivorsVisible &&
+                        (residualIds.has(edge.sourceId) ||
+                          residualIds.has(edge.targetId) ||
+                          pendingIds.has(edge.targetId))
+                          ? "is-surviving"
+                          : ""
+                      }
+                      key={edge.id}
+                    >
                       <code>{edge.sourceId}</code>
                       <span>{edge.relationship}</span>
                       <code>{edge.targetId}</code>
@@ -125,7 +183,13 @@ export function WorkspaceShell({ snapshot }: { snapshot: RuntimeSnapshot }) {
           <dl>
             <div>
               <dt>Status</dt>
-              <dd>{ready ? "SCENARIO_READY" : "STANDBY"}</dd>
+              <dd>
+                {stopped
+                  ? "STOP_INJECTED"
+                  : ready
+                    ? "SCENARIO_READY"
+                    : "STANDBY"}
+              </dd>
             </div>
             <div>
               <dt>Event count</dt>
@@ -137,11 +201,13 @@ export function WorkspaceShell({ snapshot }: { snapshot: RuntimeSnapshot }) {
             </div>
             <div>
               <dt>Residual authority</dt>
-              <dd>—</dd>
+              <dd>
+                {survivorsVisible ? snapshot.residualAuthorities.length : "—"}
+              </dd>
             </div>
             <div>
               <dt>Pending work</dt>
-              <dd>—</dd>
+              <dd>{survivorsVisible ? snapshot.pendingWork.length : "—"}</dd>
             </div>
             <div>
               <dt>Escaped effects</dt>
@@ -152,11 +218,50 @@ export function WorkspaceShell({ snapshot }: { snapshot: RuntimeSnapshot }) {
               <dd>—</dd>
             </div>
           </dl>
-          <p className="state-note">
-            {ready
-              ? "Ready for STOP. Shutdown evaluation begins in M2."
-              : "Result metrics remain unset until derived from shutdown events."}
-          </p>
+          {ready ? (
+            <button
+              className="stop-control"
+              type="button"
+              onClick={onInjectStop}
+            >
+              Inject STOP
+            </button>
+          ) : null}
+          {stopStage === "freeze" ? (
+            <p className="survivor-question">What is still alive?</p>
+          ) : null}
+          {survivorsVisible ? (
+            <div className="survivor-proof">
+              <p>STOP did not propagate</p>
+              <ul>
+                {snapshot.residualAuthorities.map((entity) => (
+                  <li key={entity.id}>
+                    <strong>{roleLabels[entity.id]}</strong>
+                    <code>{entity.status.toUpperCase()}</code>
+                  </li>
+                ))}
+              </ul>
+              <h4>Pending work</h4>
+              <ul>
+                {snapshot.pendingWork.map((entity) => (
+                  <li key={entity.id}>
+                    <strong>{entity.label}</strong>
+                    <code>QUEUED · COMMITTABLE</code>
+                  </li>
+                ))}
+              </ul>
+              <button className="advance-control" type="button" disabled>
+                Advance logical time +5 min
+              </button>
+              <small>Next legal action · available in M3</small>
+            </div>
+          ) : (
+            <p className="state-note">
+              {ready
+                ? "Ready for STOP."
+                : "Result metrics remain unset until derived from shutdown events."}
+            </p>
+          )}
         </aside>
       </div>
 
@@ -199,7 +304,12 @@ export function WorkspaceShell({ snapshot }: { snapshot: RuntimeSnapshot }) {
       </section>
       <footer className="workspace__footer">
         <span>
-          <i /> {ready ? "Scenario ready" : "Instrument ready"}
+          <i />{" "}
+          {stopped
+            ? "Survivors detected"
+            : ready
+              ? "Scenario ready"
+              : "Instrument ready"}
         </span>
         <span>All effects are simulated</span>
       </footer>

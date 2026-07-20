@@ -19,6 +19,17 @@
 * {
   box-sizing: border-box;
 }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 html {
   scroll-behavior: smooth;
   background: var(--ink);
@@ -310,6 +321,25 @@ a {
   border-radius: 50%;
   background: var(--subtle);
 }
+.signal-line--stopped::after {
+  content: "";
+  position: absolute;
+  left: 72%;
+  top: -35px;
+  width: 1px;
+  height: 48px;
+  background: var(--text);
+}
+.signal-line--stopped b {
+  position: absolute;
+  left: calc(72% + 8px);
+  top: -31px;
+  color: var(--text);
+  font:
+    500 0.58rem/1 var(--font-mono),
+    monospace;
+  letter-spacing: 0.08em;
+}
 .workspace__core {
   min-height: 410px;
   display: grid;
@@ -331,6 +361,9 @@ a {
   gap: 1rem;
   padding: 2.2rem 0 0.4rem;
   min-width: 0;
+}
+.topology--frozen .topology-node:not(.topology-node--stopped) {
+  opacity: 0.32;
 }
 .topology__nodes {
   list-style: none;
@@ -377,6 +410,34 @@ a {
 .topology-node--queue_item {
   box-shadow: inset 2px 0 0 var(--muted);
 }
+.topology-node--stopped {
+  opacity: 0.56;
+  box-shadow: inset 2px 0 0 var(--muted);
+}
+.topology-node--stopped code {
+  color: var(--muted);
+}
+.topology-node--survivor {
+  animation: reveal-survivor 0.28s var(--reveal-delay, 0s) both;
+  animation-delay: calc(var(--reveal-depth) * 55ms);
+  border-color: rgba(232, 176, 75, 0.72);
+  box-shadow:
+    inset 3px 0 0 var(--live),
+    0 0 18px rgba(232, 176, 75, 0.08);
+}
+.topology-node--pending {
+  border-color: var(--line-strong);
+}
+@keyframes reveal-survivor {
+  from {
+    opacity: 0.28;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 .topology__edges {
   list-style: none;
   margin: 0;
@@ -408,6 +469,10 @@ a {
 .topology__edges span {
   color: var(--live);
   text-transform: uppercase;
+}
+.topology__edges li.is-surviving span {
+  color: var(--live);
+  font-weight: 600;
 }
 .region-heading {
   display: flex;
@@ -495,6 +560,93 @@ a {
   color: var(--subtle);
   font:
     400 0.65rem/1.5 var(--font-mono),
+    monospace;
+}
+.stop-control,
+.advance-control {
+  width: 100%;
+  border: 1px solid var(--live);
+  padding: 0.78rem 0.85rem;
+  background: var(--live);
+  color: var(--ink);
+  cursor: pointer;
+  font:
+    600 0.68rem/1 var(--font-mono),
+    monospace;
+  letter-spacing: 0.04em;
+  text-align: left;
+  text-transform: uppercase;
+}
+.stop-control:hover {
+  background: var(--text);
+  border-color: var(--text);
+}
+.advance-control {
+  margin-top: 1rem;
+  background: var(--text);
+  border-color: var(--text);
+}
+.advance-control:disabled {
+  opacity: 0.72;
+  cursor: default;
+}
+.survivor-question {
+  margin: 2rem 0;
+  color: var(--text);
+  font:
+    500 1.15rem/1.25 var(--font-display),
+    sans-serif;
+}
+.survivor-proof {
+  margin-top: 1.15rem;
+}
+.survivor-proof > p {
+  margin: 0 0 0.85rem;
+  color: var(--live);
+  font:
+    600 0.7rem/1 var(--font-mono),
+    monospace;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.survivor-proof h4 {
+  margin: 1.15rem 0 0.45rem;
+  color: var(--subtle);
+  font:
+    500 0.62rem/1 var(--font-mono),
+    monospace;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.survivor-proof ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.survivor-proof li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.48rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.survivor-proof li strong {
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+.survivor-proof li code {
+  color: var(--live);
+  font:
+    500 0.58rem/1.3 var(--font-mono),
+    monospace;
+  text-align: right;
+}
+.survivor-proof small {
+  display: block;
+  margin-top: 0.5rem;
+  color: var(--subtle);
+  font:
+    400 0.58rem/1.4 var(--font-mono),
     monospace;
 }
 .evidence-region {
