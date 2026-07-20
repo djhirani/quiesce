@@ -6,5 +6,6 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./tests/setup.ts"],
+    include: ["tests/{smoke,domain,engine,certificate,ai}/**/*.test.{ts,tsx}"],
   },
 });

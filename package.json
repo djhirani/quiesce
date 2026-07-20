@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
@@ -23,7 +23,6 @@
     "zod": "latest"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "latest",
     "@fontsource-variable/space-grotesk": "latest",
     "@fontsource/ibm-plex-mono": "latest",
     "@fontsource/ibm-plex-sans": "latest",

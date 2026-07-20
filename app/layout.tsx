@@ -29,12 +29,18 @@ const mono = localFont({
 
 export const metadata: Metadata = {
   title: "Quiesce — Shutdown assurance",
-  description: "A deterministic shutdown-assurance test harness for autonomous agents.",
+  description:
+    "A deterministic shutdown-assurance test harness for autonomous agents.",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${display.variable} ${sans.variable} ${mono.variable}`}>
+    <html
+      lang="en"
+      className={`${display.variable} ${sans.variable} ${mono.variable}`}
+    >
       <body>{children}</body>
     </html>
   );

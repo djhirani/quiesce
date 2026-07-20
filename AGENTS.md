@@ -6,7 +6,24 @@ Quiesce is a separate project. Never inspect, modify, copy from, deploy, rename,
 
 Quiesce is an executable shutdown-assurance test harness for AI-agent systems. It injects STOP, records the event, advances deterministic logical time, and proves whether child agents, delegated credentials, scheduled jobs, retry workers, queue items, or pending effects remain capable of acting.
 
-The core deterministic cloud-cleanup demo must eventually cover vulnerable shutdown, a protected SEAL → REVOKE → DRAIN → PROVE replay, and a Quiescence Sweep. Implement these only in their designated milestones.
+## Core demo
+
+A simulated cloud-cleanup agent performs legitimate work, creates a child, issues a temporary credential, schedules recurring cleanup, enables a retry worker, and queues two operations. The user presses STOP. A deliberately vulnerable shutdown stops only the root. The child, credential, schedule, retry, and queues survive. The user advances logical time by five minutes. A simulated production-backup deletion commits after STOP. Quiesce fails the test with exact event evidence.
+
+The same scenario is replayed using SEAL → REVOKE → DRAIN → PROVE:
+
+- authority epoch advances;
+- commit gate seals;
+- queues cancel;
+- schedules cancel;
+- retries disable;
+- credentials revoke;
+- descendants terminate;
+- a stale delayed effect is rejected;
+- zero residual authority remains;
+- Time to Quiescence is derived from events.
+
+Quiesce also runs a Quiescence Sweep, injecting STOP after every meaningful authority-changing event to discover the earliest unsafe shutdown boundary. Implement these capabilities only in their designated milestones.
 
 ## Non-negotiable architecture
 
@@ -30,7 +47,9 @@ The core deterministic cloud-cleanup demo must eventually cover vulnerable shutd
 
 Quiesce must feel like a premium infrastructure control-room instrument, not a generic AI dashboard. Use one dominant authority topology, one Quiescence Trace, one Shutdown Envelope, one test-state rail, and one evidence ledger. Use deep neutral surfaces, precise typography, semantic signal colors, one-pixel borders, restrained shadows, and disciplined Motion animations. No purple AI gradients, chat UI, excessive glass, fake terminal, decorative explosions, or card-grid clutter.
 
-Animation explains evidence. Use event-driven focus cues, preserve event order, support `prefers-reduced-motion`, and do not animate every edge continuously.
+## Animation
+
+Animation explains evidence. Use event-driven focus cues. STOP must append `STOP_INJECTED`, stop the root, create a brief freeze, reveal surviving authority paths, and expose Advance logical time. `CLOCK_ADVANCED` must be recorded before due work triggers. Protected shutdown animation must match event order. Support `prefers-reduced-motion`. Do not animate every edge continuously.
 
 ## Quality and work method
 
