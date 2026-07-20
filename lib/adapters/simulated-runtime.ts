@@ -7,6 +7,7 @@ import { handleCommand } from "@/lib/engine/command-handler";
 import { LogicalClock } from "@/lib/engine/logical-clock";
 import {
   projectEntities,
+  projectEscapedEffects,
   projectGraph,
   projectNextLegalCommand,
   projectPendingWork,
@@ -16,6 +17,7 @@ import {
   projectStatuses,
 } from "@/lib/engine/projectors";
 import { CloudCleanupScenario } from "@/lib/engine/scenario";
+import { verifyQuiescence } from "@/lib/engine/verifier";
 import {
   CLOUD_CLEANUP_RUN_ID,
   CLOUD_CLEANUP_SEED,
@@ -42,13 +44,13 @@ export class SimulatedRuntimeAdapter implements AgentRuntimeAdapter {
   }
 
   async advanceLogicalTime(deltaMs: number): Promise<void> {
-    void deltaMs;
-    throw new Error("Logical-time advancement is not implemented in M2.");
+    handleCommand(this.#scenario, { type: "ADVANCE_CLOCK", deltaMs });
   }
 
   inspectRuntime(): RuntimeSnapshot {
     const events = this.#store.history();
     const graph = projectGraph(events);
+    const result = verifyQuiescence(events);
     return Object.freeze({
       runId: events.length > 0 ? CLOUD_CLEANUP_RUN_ID : null,
       scenarioSeed: CLOUD_CLEANUP_SEED,
@@ -61,7 +63,10 @@ export class SimulatedRuntimeAdapter implements AgentRuntimeAdapter {
       statuses: projectStatuses(events),
       residualAuthorities: projectResidualAuthorities(events),
       pendingWork: projectPendingWork(events),
-      invariantResults: projectShutdownInvariants(events),
+      invariantResults:
+        result?.invariantResults ?? projectShutdownInvariants(events),
+      escapedEffects: projectEscapedEffects(events),
+      result,
     });
   }
 }

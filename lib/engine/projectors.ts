@@ -51,6 +51,13 @@ export function projectPhase(
   events: readonly AuthorityEvent[],
 ): SimulationPhase {
   if (events.length === 0) return "idle";
+  if (events.at(-1)?.type === "EFFECT_COMMITTED") return "test_complete";
+  if (
+    ["CLOCK_ADVANCED", "JOB_TRIGGERED", "EFFECT_ATTEMPTED"].includes(
+      events.at(-1)?.type ?? "",
+    )
+  )
+    return "clock_advanced";
   if (events.at(-1)?.type === "AGENT_STOPPED") return "survivors_evaluated";
   if (events.at(-1)?.type === "STOP_INJECTED") return "stop_injected";
   if (events.at(-1)?.type === "SCENARIO_READY") return "ready_to_stop";
@@ -99,9 +106,29 @@ export function projectPendingWork(
     projectEntities(events).filter(
       (entity) =>
         entity.kind === "queue_item" &&
-        entity.status === "queued" &&
+        (entity.status === "queued" || entity.status === "attempting") &&
         entity.committable === true,
     ),
+  );
+}
+
+export function projectEscapedEffects(
+  events: readonly AuthorityEvent[],
+): readonly AuthorityEntity[] {
+  const stop = events.find((event) => event.type === "STOP_INJECTED");
+  if (!stop) return [];
+  const escapedIds = new Set(
+    events
+      .filter(
+        (event) =>
+          event.type === "EFFECT_COMMITTED" &&
+          event.eventIndex > stop.eventIndex &&
+          event.payload.material === true,
+      )
+      .map((event) => event.subjectId),
+  );
+  return Object.freeze(
+    projectEntities(events).filter((entity) => escapedIds.has(entity.id)),
   );
 }
 

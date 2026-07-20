@@ -14,6 +14,7 @@ export function QuiesceExperience() {
   const [stopStage, setStopStage] = useState<"idle" | "freeze" | "revealed">(
     "idle",
   );
+  const [selectedEffectId, setSelectedEffectId] = useState<string | null>(null);
 
   async function startRun() {
     if (snapshot.nextLegalCommand !== "START_RUN") return;
@@ -35,8 +36,16 @@ export function QuiesceExperience() {
     window.setTimeout(() => setStopStage("revealed"), reduceMotion ? 0 : 300);
   }
 
+  async function advanceClock() {
+    if (snapshot.nextLegalCommand !== "ADVANCE_CLOCK") return;
+    await adapter.advanceLogicalTime(300_000);
+    setSnapshot(adapter.inspectRuntime());
+  }
+
   const ready = snapshot.phase === "ready_to_stop";
-  const stopped = snapshot.phase === "survivors_evaluated";
+  const stopped = snapshot.events.some(
+    (event) => event.type === "STOP_INJECTED",
+  );
   const primaryLabel = stopped
     ? "Advance logical time +5 min"
     : ready
@@ -77,8 +86,16 @@ export function QuiesceExperience() {
             </button>
           ) : (
             <div className="run-button run-button--state" role="status">
-              <span>{ready ? "Scenario ready" : "STOP recorded"}</span>
-              <span aria-hidden="true">{ready ? "✓" : "■"}</span>
+              <span>
+                {snapshot.result
+                  ? "Quiescence test failed"
+                  : ready
+                    ? "Scenario ready"
+                    : "STOP recorded"}
+              </span>
+              <span aria-hidden="true">
+                {snapshot.result ? "!" : ready ? "✓" : "■"}
+              </span>
             </div>
           )}
         </div>
@@ -91,11 +108,16 @@ export function QuiesceExperience() {
         snapshot={snapshot}
         stopStage={stopStage}
         onInjectStop={injectStop}
+        onAdvanceClock={advanceClock}
+        selectedEffectId={selectedEffectId}
+        onSelectEffect={setSelectedEffectId}
       />
       <p className="sr-only" aria-live="polite">
-        {stopStage === "revealed"
-          ? `Stop injected. Root agent stopped. ${snapshot.residualAuthorities.length} residual authorities remain. ${snapshot.pendingWork.length} pending operations remain queued.`
-          : ""}
+        {snapshot.result
+          ? `Quiescence test failed. ${snapshot.result.escapedEffectIds.length} material simulated effect committed after STOP.`
+          : stopStage === "revealed"
+            ? `Stop injected. Root agent stopped. ${snapshot.residualAuthorities.length} residual authorities remain. ${snapshot.pendingWork.length} pending operations remain queued.`
+            : ""}
       </p>
     </main>
   );

@@ -11,6 +11,8 @@ export type SimulationPhase =
   | "building_authority"
   | "ready_to_stop"
   | "stop_injected"
-  | "survivors_evaluated";
+  | "survivors_evaluated"
+  | "clock_advanced"
+  | "test_complete";
 
 export type NextLegalCommand = SimulationCommand["type"] | null;

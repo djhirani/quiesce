@@ -18,5 +18,5 @@ export function handleCommand(
   if (command.type === "INJECT_STOP") {
     return scenario.injectStop();
   }
-  throw new Error("Logical-time advancement is not implemented in M2.");
+  return scenario.advanceClock(command.deltaMs);
 }

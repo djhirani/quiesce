@@ -340,6 +340,35 @@ a {
     monospace;
   letter-spacing: 0.08em;
 }
+.signal-line--advanced span {
+  animation: advance-ruler 0.65s ease-out both;
+  background: var(--still);
+}
+.signal-line--breach::before {
+  left: 88%;
+  top: -48px;
+  height: 62px;
+  background: var(--breach);
+}
+.signal-line--breach em {
+  position: absolute;
+  right: 12%;
+  top: -45px;
+  color: var(--breach);
+  font:
+    600 0.58rem/1 var(--font-mono),
+    monospace;
+  font-style: normal;
+  letter-spacing: 0.08em;
+}
+@keyframes advance-ruler {
+  from {
+    left: 10%;
+  }
+  to {
+    left: 88%;
+  }
+}
 .workspace__core {
   min-height: 410px;
   display: grid;
@@ -428,6 +457,29 @@ a {
 .topology-node--pending {
   border-color: var(--line-strong);
 }
+.topology-node--effect {
+  border-color: var(--breach);
+  box-shadow: inset 3px 0 0 var(--breach);
+}
+.topology-node--effect code {
+  color: var(--breach);
+}
+.topology-node--triggered {
+  animation: job-trigger 0.7s ease-out 1;
+}
+.topology-node--selected {
+  border-color: var(--breach);
+  box-shadow:
+    inset 3px 0 0 var(--breach),
+    0 0 18px rgba(228, 87, 79, 0.18);
+}
+@keyframes job-trigger {
+  50% {
+    box-shadow:
+      inset 3px 0 0 var(--live),
+      0 0 24px rgba(232, 176, 75, 0.35);
+  }
+}
 @keyframes reveal-survivor {
   from {
     opacity: 0.28;
@@ -473,6 +525,12 @@ a {
 .topology__edges li.is-surviving span {
   color: var(--live);
   font-weight: 600;
+}
+.topology__edges li.is-selected {
+  background: rgba(228, 87, 79, 0.08);
+}
+.topology__edges li.is-selected span {
+  color: var(--breach);
 }
 .region-heading {
   display: flex;
@@ -649,6 +707,48 @@ a {
     400 0.58rem/1.4 var(--font-mono),
     monospace;
 }
+.verdict {
+  margin-top: 1rem;
+  border: 1px solid var(--breach);
+  padding: 0.85rem;
+  background: rgba(228, 87, 79, 0.06);
+}
+.verdict > p {
+  margin: 0 0 0.55rem;
+  color: var(--breach);
+  font:
+    700 0.74rem/1 var(--font-mono),
+    monospace;
+  letter-spacing: 0.05em;
+}
+.verdict > strong {
+  display: block;
+  color: var(--text);
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+.verdict dl {
+  margin: 0.75rem 0;
+}
+.escaped-effect {
+  width: 100%;
+  display: grid;
+  gap: 0.35rem;
+  border: 1px solid var(--breach);
+  padding: 0.7rem;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.65rem;
+}
+.escaped-effect[aria-pressed="true"] {
+  background: rgba(228, 87, 79, 0.14);
+}
+.escaped-effect code {
+  color: var(--breach);
+  font-family: var(--font-mono), monospace;
+}
 .evidence-region {
   min-height: 160px;
   position: relative;
@@ -687,6 +787,10 @@ a {
 }
 .ledger td:first-child,
 .ledger td:nth-child(3) {
+  color: var(--text);
+}
+.ledger tr.is-cited td {
+  background: rgba(228, 87, 79, 0.08);
   color: var(--text);
 }
 .evidence-region nav {

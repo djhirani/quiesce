@@ -19,4 +19,12 @@ export class LogicalClock {
     this.#timeMs += deltaMs;
     return this.#timeMs;
   }
+
+  advanceToHorizon(horizonMs: number): number {
+    if (!Number.isSafeInteger(horizonMs) || horizonMs <= this.#timeMs) {
+      throw new Error("Clock horizon must be after current logical time.");
+    }
+    this.#timeMs = horizonMs;
+    return this.#timeMs;
+  }
 }

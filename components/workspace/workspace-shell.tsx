@@ -1,11 +1,6 @@
 import type { RuntimeSnapshot } from "@/lib/adapters/runtime-adapter";
 import type { CSSProperties } from "react";
 
-const regions = [
-  ["01", "Quiescence Trace"],
-  ["02", "Shutdown Envelope"],
-] as const;
-
 const kindLabels = {
   human: "Human",
   agent: "Agent",
@@ -25,27 +20,61 @@ const roleLabels: Record<string, string> = {
   "retry-cleanup-01": "Retry",
 };
 
+const effectPathIds = new Set([
+  "credential-cleanup-01",
+  "job-recurring-cleanup-01",
+  "retry-cleanup-01",
+  "queue-production-backup-01",
+  "effect-production-backup-deletion-01",
+]);
+
 export function WorkspaceShell({
   snapshot,
   stopStage,
   onInjectStop,
+  onAdvanceClock,
+  selectedEffectId,
+  onSelectEffect,
 }: {
   snapshot: RuntimeSnapshot;
   stopStage: "idle" | "freeze" | "revealed";
   onInjectStop: () => void;
+  onAdvanceClock: () => void;
+  selectedEffectId: string | null;
+  onSelectEffect: (id: string | null) => void;
 }) {
   const started = snapshot.events.length > 0;
   const ready = snapshot.phase === "ready_to_stop";
-  const stopped = snapshot.phase === "survivors_evaluated";
-  const survivorsVisible = stopped && stopStage === "revealed";
   const stopEvent = snapshot.events.find(
     (event) => event.type === "STOP_INJECTED",
   );
+  const clockEvent = snapshot.events.find(
+    (event) => event.type === "CLOCK_ADVANCED",
+  );
+  const committedEvent = snapshot.events.find(
+    (event) => event.type === "EFFECT_COMMITTED",
+  );
+  const stopped = Boolean(stopEvent);
+  const survivorsVisible = stopped && stopStage === "revealed";
   const residualIds = new Set(snapshot.residualAuthorities.map(({ id }) => id));
   const pendingIds = new Set(snapshot.pendingWork.map(({ id }) => id));
-  const graphEntities = snapshot.entities.filter(
-    (entity) => entity.kind !== "effect",
+  const selected = selectedEffectId !== null;
+  const citedIds = new Set(
+    selected
+      ? (snapshot.result?.invariantResults
+          .flatMap(({ evidenceEventIds }) => evidenceEventIds)
+          .filter(
+            (id) => id === stopEvent?.eventId || id === committedEvent?.eventId,
+          ) ?? [])
+      : [],
   );
+  if (selected) {
+    for (const event of snapshot.events) {
+      if (["JOB_TRIGGERED", "EFFECT_ATTEMPTED"].includes(event.type)) {
+        citedIds.add(event.eventId);
+      }
+    }
+  }
 
   return (
     <section
@@ -58,11 +87,13 @@ export function WorkspaceShell({
           <span className="micro-label">Test instrument</span>
           <h2 id="workspace-title">
             Cloud cleanup /{" "}
-            {stopped
-              ? "survivors detected"
-              : ready
-                ? "ready to stop"
-                : "standby"}
+            {snapshot.result
+              ? "breach proven"
+              : stopped
+                ? "survivors detected"
+                : ready
+                  ? "ready to stop"
+                  : "standby"}
           </h2>
         </div>
         <div className="workspace__meta">
@@ -74,36 +105,44 @@ export function WorkspaceShell({
       </header>
 
       <div className="workspace__signals">
-        {regions.map(([index, title]) => (
-          <section
-            className="signal-region"
-            key={title}
-            aria-labelledby={`region-${index}`}
-          >
-            <span className="region-index">{index}</span>
-            <div>
-              <h3 id={`region-${index}`}>{title}</h3>
-              <p>
-                {stopEvent && title === "Quiescence Trace"
+        <section className="signal-region" aria-labelledby="region-01">
+          <span className="region-index">01</span>
+          <div>
+            <h3 id="region-01">Quiescence Trace</h3>
+            <p>
+              {committedEvent
+                ? `Post-STOP breach proven by ${committedEvent.eventId}.`
+                : stopEvent
                   ? "STOP recorded. No post-STOP effect has occurred."
-                  : started
-                    ? "No shutdown evidence recorded yet."
-                    : title === "Quiescence Trace"
-                      ? "Recorded activity will appear here when a test begins."
-                      : "Tested authority boundaries will appear after a sweep."}
-              </p>
-            </div>
-            <div
-              className={`signal-line ${stopEvent && title === "Quiescence Trace" ? "signal-line--stopped" : ""}`}
-              aria-hidden="true"
-            >
-              <span />
-              {stopEvent && title === "Quiescence Trace" ? (
-                <b>STOP · {stopEvent.eventId}</b>
-              ) : null}
-            </div>
-          </section>
-        ))}
+                  : "Recorded activity will appear here when a test begins."}
+            </p>
+          </div>
+          <div
+            className={`signal-line ${stopEvent ? "signal-line--stopped" : ""} ${clockEvent ? "signal-line--advanced" : ""} ${committedEvent ? "signal-line--breach" : ""}`}
+            aria-hidden="true"
+          >
+            <span />
+            {stopEvent ? <b>STOP · {stopEvent.eventId}</b> : null}
+            {committedEvent ? <em>BREACH · {committedEvent.eventId}</em> : null}
+          </div>
+        </section>
+        <section className="signal-region" aria-labelledby="region-02">
+          <span className="region-index">02</span>
+          <div>
+            <h3 id="region-02">Logical-time ruler</h3>
+            <p>
+              {clockEvent
+                ? `${clockEvent.eventId} advanced exactly 300000 ms.`
+                : "Awaiting the post-STOP clock advance."}
+            </p>
+          </div>
+          <div
+            className={`signal-line signal-line--ruler ${clockEvent ? "signal-line--advanced" : ""}`}
+            aria-hidden="true"
+          >
+            <span />
+          </div>
+        </section>
       </div>
 
       <div className="workspace__core">
@@ -118,15 +157,11 @@ export function WorkspaceShell({
               aria-label="Current authority topology"
             >
               <ol className="topology__nodes">
-                {graphEntities.map((entity) => (
+                {snapshot.entities.map((entity, index) => (
                   <li
-                    className={`topology-node topology-node--${entity.kind} ${entity.status === "stopped" ? "topology-node--stopped" : ""} ${survivorsVisible && residualIds.has(entity.id) ? "topology-node--survivor" : ""} ${survivorsVisible && pendingIds.has(entity.id) ? "topology-node--pending" : ""}`}
+                    className={`topology-node topology-node--${entity.kind} ${entity.status === "stopped" ? "topology-node--stopped" : ""} ${survivorsVisible && residualIds.has(entity.id) ? "topology-node--survivor" : ""} ${survivorsVisible && pendingIds.has(entity.id) ? "topology-node--pending" : ""} ${clockEvent && entity.id === "job-recurring-cleanup-01" ? "topology-node--triggered" : ""} ${selected && effectPathIds.has(entity.id) ? "topology-node--selected" : ""}`}
                     key={entity.id}
-                    style={
-                      {
-                        "--reveal-depth": graphEntities.indexOf(entity),
-                      } as CSSProperties
-                    }
+                    style={{ "--reveal-depth": index } as CSSProperties}
                   >
                     <span>
                       {roleLabels[entity.id] ?? kindLabels[entity.kind]}
@@ -147,14 +182,7 @@ export function WorkspaceShell({
                   )
                   .map((edge) => (
                     <li
-                      className={
-                        survivorsVisible &&
-                        (residualIds.has(edge.sourceId) ||
-                          residualIds.has(edge.targetId) ||
-                          pendingIds.has(edge.targetId))
-                          ? "is-surviving"
-                          : ""
-                      }
+                      className={`${survivorsVisible && (residualIds.has(edge.sourceId) || residualIds.has(edge.targetId) || pendingIds.has(edge.targetId)) ? "is-surviving" : ""} ${selected && effectPathIds.has(edge.sourceId) && effectPathIds.has(edge.targetId) ? "is-selected" : ""}`}
                       key={edge.id}
                     >
                       <code>{edge.sourceId}</code>
@@ -184,11 +212,13 @@ export function WorkspaceShell({
             <div>
               <dt>Status</dt>
               <dd>
-                {stopped
-                  ? "STOP_INJECTED"
-                  : ready
-                    ? "SCENARIO_READY"
-                    : "STANDBY"}
+                {snapshot.result
+                  ? "FAILED"
+                  : stopped
+                    ? "STOP_INJECTED"
+                    : ready
+                      ? "SCENARIO_READY"
+                      : "STANDBY"}
               </dd>
             </div>
             <div>
@@ -211,11 +241,11 @@ export function WorkspaceShell({
             </div>
             <div>
               <dt>Escaped effects</dt>
-              <dd>—</dd>
+              <dd>{snapshot.result ? snapshot.escapedEffects.length : "—"}</dd>
             </div>
             <div>
               <dt>Time to quiescence</dt>
-              <dd>—</dd>
+              <dd>{snapshot.result ? "NOT ACHIEVED" : "—"}</dd>
             </div>
           </dl>
           {ready ? (
@@ -230,7 +260,7 @@ export function WorkspaceShell({
           {stopStage === "freeze" ? (
             <p className="survivor-question">What is still alive?</p>
           ) : null}
-          {survivorsVisible ? (
+          {survivorsVisible && !snapshot.result ? (
             <div className="survivor-proof">
               <p>STOP did not propagate</p>
               <ul>
@@ -246,22 +276,67 @@ export function WorkspaceShell({
                 {snapshot.pendingWork.map((entity) => (
                   <li key={entity.id}>
                     <strong>{entity.label}</strong>
-                    <code>QUEUED · COMMITTABLE</code>
+                    <code>{entity.status.toUpperCase()} · COMMITTABLE</code>
                   </li>
                 ))}
               </ul>
-              <button className="advance-control" type="button" disabled>
+              <button
+                className="advance-control"
+                type="button"
+                onClick={onAdvanceClock}
+                disabled={snapshot.nextLegalCommand !== "ADVANCE_CLOCK"}
+              >
                 Advance logical time +5 min
               </button>
-              <small>Next legal action · available in M3</small>
+              <small>Next legal action · exactly 300000 ms</small>
             </div>
-          ) : (
+          ) : null}
+          {snapshot.result ? (
+            <div className="verdict" role="status">
+              <p>QUIESCENCE TEST: FAILED</p>
+              <strong>
+                One material simulated effect committed after STOP.
+              </strong>
+              <dl>
+                <div>
+                  <dt>Residual authorities</dt>
+                  <dd>4</dd>
+                </div>
+                <div>
+                  <dt>Pending work</dt>
+                  <dd>2</dd>
+                </div>
+                <div>
+                  <dt>Escaped effects</dt>
+                  <dd>1</dd>
+                </div>
+                <div>
+                  <dt>Time to quiescence</dt>
+                  <dd>NOT ACHIEVED</dd>
+                </div>
+              </dl>
+              {snapshot.escapedEffects.map((effect) => (
+                <button
+                  className="escaped-effect"
+                  type="button"
+                  aria-pressed={selectedEffectId === effect.id}
+                  onClick={() =>
+                    onSelectEffect(
+                      selectedEffectId === effect.id ? null : effect.id,
+                    )
+                  }
+                  key={effect.id}
+                >
+                  Escaped effect · {effect.label}
+                  <code>{committedEvent?.eventId}</code>
+                </button>
+              ))}
+            </div>
+          ) : !ready && !survivorsVisible ? (
             <p className="state-note">
-              {ready
-                ? "Ready for STOP."
-                : "Result metrics remain unset until derived from shutdown events."}
+              Result metrics remain unset until derived from shutdown events.
             </p>
-          )}
+          ) : null}
         </aside>
       </div>
 
@@ -284,7 +359,10 @@ export function WorkspaceShell({
               </thead>
               <tbody>
                 {snapshot.events.map((event) => (
-                  <tr key={event.eventId}>
+                  <tr
+                    className={citedIds.has(event.eventId) ? "is-cited" : ""}
+                    key={event.eventId}
+                  >
                     <td>{event.eventId}</td>
                     <td>{event.logicalTimeMs} ms</td>
                     <td>{event.type}</td>
@@ -305,11 +383,13 @@ export function WorkspaceShell({
       <footer className="workspace__footer">
         <span>
           <i />{" "}
-          {stopped
-            ? "Survivors detected"
-            : ready
-              ? "Scenario ready"
-              : "Instrument ready"}
+          {snapshot.result
+            ? "Breach proven"
+            : stopped
+              ? "Survivors detected"
+              : ready
+                ? "Scenario ready"
+                : "Instrument ready"}
         </span>
         <span>All effects are simulated</span>
       </footer>

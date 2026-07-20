@@ -57,4 +57,19 @@ describe("event projectors", () => {
       expect(event.causedByEventId).toBe(events[index - 1]?.eventId);
     }
   });
+
+  it("projects the committed effect and its exact graph edge", async () => {
+    const runtime = new SimulatedRuntimeAdapter();
+    await runtime.startScenario();
+    await runtime.injectStop();
+    await runtime.advanceLogicalTime(300_000);
+    const snapshot = runtime.inspectRuntime();
+
+    expect(snapshot.entities.at(-1)?.id).toBe(entityIds.backupEffect);
+    expect(snapshot.edges.at(-1)).toMatchObject({
+      sourceId: entityIds.backupQueue,
+      relationship: "commits",
+      targetId: entityIds.backupEffect,
+    });
+  });
 });

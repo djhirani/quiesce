@@ -14,6 +14,7 @@ export const entityIds = {
   backupQueue: "queue-production-backup-01",
   safeEffectOne: "effect-development-instance-01",
   safeEffectTwo: "effect-development-instance-02",
+  backupEffect: "effect-production-backup-deletion-01",
 } as const;
 
 export const cloudCleanupEntities = {
@@ -106,6 +107,15 @@ export const cloudCleanupEntities = {
     label: "Stopped development instance 02",
     status: "committed",
     parentId: entityIds.root,
+    authorityEpoch: null,
+    simulated: true,
+  },
+  backupEffect: {
+    id: entityIds.backupEffect,
+    kind: "effect",
+    label: "Production backup deletion",
+    status: "committed",
+    parentId: entityIds.backupQueue,
     authorityEpoch: null,
     simulated: true,
   },

@@ -57,9 +57,32 @@ test("starts the deterministic scenario and renders event evidence", async ({
   ).toHaveCount(2);
   await expect(
     page.getByRole("button", { name: /advance logical time \+5 min/i }),
-  ).toBeVisible();
+  ).toBeEnabled();
   await expect(page.getByText("EFFECT_COMMITTED", { exact: true })).toHaveCount(
     0,
   );
+  await page
+    .getByRole("button", { name: /advance logical time \+5 min/i })
+    .click();
+  await expect(page.getByText("CLOCK_ADVANCED", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("EFFECT_COMMITTED", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("QUIESCENCE TEST: FAILED", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("NOT ACHIEVED", { exact: true })).toHaveCount(2);
+  await expect(
+    page.getByText("One material simulated effect committed after STOP.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  const effect = page.getByRole("button", {
+    name: /escaped effect · production backup deletion/i,
+  });
+  await effect.click();
+  await expect(effect).toHaveAttribute("aria-pressed", "true");
+  await expect(topology.locator(".topology-node--selected")).toHaveCount(5);
+  await expect(page.locator(".ledger tr.is-cited")).toHaveCount(4);
   await expect(page.locator("body")).toHaveCSS("overflow-x", "hidden");
 });

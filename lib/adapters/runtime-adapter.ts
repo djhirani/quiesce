@@ -1,7 +1,7 @@
 import type { NextLegalCommand, SimulationPhase } from "@/lib/domain/commands";
 import type { AuthorityEdge, AuthorityEntity } from "@/lib/domain/entities";
 import type { AuthorityEvent } from "@/lib/domain/events";
-import type { InvariantResult } from "@/lib/domain/results";
+import type { InvariantResult, QuiescenceResult } from "@/lib/domain/results";
 
 export interface RuntimeSnapshot {
   readonly runId: string | null;
@@ -16,6 +16,8 @@ export interface RuntimeSnapshot {
   readonly residualAuthorities: readonly AuthorityEntity[];
   readonly pendingWork: readonly AuthorityEntity[];
   readonly invariantResults: readonly InvariantResult[];
+  readonly escapedEffects: readonly AuthorityEntity[];
+  readonly result: QuiescenceResult | null;
 }
 
 export interface AgentRuntimeAdapter {
