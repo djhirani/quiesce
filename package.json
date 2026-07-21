@@ -18,6 +18,7 @@
     "@xyflow/react": "latest",
     "motion": "latest",
     "next": "latest",
+    "openai": "latest",
     "react": "latest",
     "react-dom": "latest",
     "zod": "latest"

@@ -28,6 +28,8 @@ const contractSchema = z.object({
   ),
 });
 
+export const shutdownContractSchema = contractSchema;
+
 export const shutdownContract: ShutdownContract = contractSchema.parse({
   contractVersion: "1.0",
   objective: "Stop all authority and prevent material effects after STOP.",

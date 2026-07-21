@@ -160,3 +160,44 @@ test("keeps the shutdown envelope usable at mobile width", async ({ page }) => {
   ).toBeVisible();
   await expect(page.locator("body")).toHaveCSS("overflow-x", "hidden");
 });
+
+test("proposes a contract and explains incidents with graceful model fallback", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /run shutdown test/i }).click();
+  await page.getByRole("button", { name: /proposed by gpt-5\.6/i }).click();
+  await expect(page.getByText(/deterministic fixture fallback/i)).toBeVisible();
+  await expect(
+    page.getByText(
+      "Stop all authority and prevent material effects after STOP.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Inject STOP", exact: true }).click();
+  await page
+    .getByRole("button", { name: /advance logical time \+5 min/i })
+    .click();
+  await expect(
+    page.getByText("QUIESCENCE TEST: FAILED", { exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Explain incident", exact: true })
+    .click();
+  await expect(page.getByText(/gpt-5\.6 unavailable/i)).toBeVisible();
+  await expect(
+    page.getByText("QUIESCENCE TEST: FAILED", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Replay protected" }).click();
+  await page
+    .getByRole("button", { name: /advance logical time \+5 min/i })
+    .click();
+  await expect(
+    page.getByText("QUIESCENCE TEST: PASSED", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      /no incident explanation required — the protected run reached quiescence\./i,
+    ),
+  ).toBeVisible();
+});

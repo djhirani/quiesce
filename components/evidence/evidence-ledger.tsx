@@ -18,21 +18,29 @@ export function EvidenceLedger({
   citedIds,
   runId,
   policy,
+  focusedEventId = null,
 }: {
   events: readonly AuthorityEvent[];
   started: boolean;
   citedIds: ReadonlySet<string>;
   runId: string | null;
   policy: SimulationPolicy;
+  focusedEventId?: string | null;
 }) {
   const [view, setView] = useState<"table" | "jsonl">("table");
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">(
     "idle",
   );
+  const [lastFocusedEventId, setLastFocusedEventId] = useState(focusedEventId);
   const jsonlLines = useMemo(
     () => events.map((event) => JSON.stringify(event)),
     [events],
   );
+
+  if (focusedEventId !== lastFocusedEventId) {
+    setLastFocusedEventId(focusedEventId);
+    if (focusedEventId) setView("table");
+  }
 
   function downloadJsonl() {
     const blob = new Blob([jsonlLines.join("\n") + "\n"], {
@@ -139,14 +147,28 @@ export function EvidenceLedger({
             <tbody>
               {events.map((event) => {
                 const tone = rowTones[event.type];
+                const focused = event.eventId === focusedEventId;
                 const classNames = [
                   citedIds.has(event.eventId) ? "is-cited" : "",
                   tone ? `ledger-row--${tone}` : "",
+                  focused ? "is-focused" : "",
                 ]
                   .filter(Boolean)
                   .join(" ");
                 return (
-                  <tr className={classNames} key={event.eventId}>
+                  <tr
+                    className={classNames}
+                    ref={
+                      focused
+                        ? (node) =>
+                            node?.scrollIntoView({
+                              block: "nearest",
+                              behavior: "auto",
+                            })
+                        : undefined
+                    }
+                    key={event.eventId}
+                  >
                     <td>{event.eventId}</td>
                     <td>{event.logicalTimeMs} ms</td>
                     <td>{event.type}</td>

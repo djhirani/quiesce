@@ -1,10 +1,13 @@
+"use client";
+
 import type { RuntimeSnapshot } from "@/lib/adapters/runtime-adapter";
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import type { AuthorityEvent } from "@/lib/domain/events";
 import type {
   QuiescenceSweepResult,
   SweepPointResult,
 } from "@/lib/domain/sweep";
+import { AiConsole } from "@/components/ai/ai-console";
 import { EvidenceLedger } from "@/components/evidence/evidence-ledger";
 
 const kindLabels = {
@@ -70,6 +73,7 @@ export function WorkspaceShell({
   onSelectSweepPoint: (point: SweepPointResult) => void;
   onReturnToRun: () => void;
 }) {
+  const [focusedEventId, setFocusedEventId] = useState<string | null>(null);
   const started = snapshot.events.length > 0;
   const ready = snapshot.phase === "ready_to_stop";
   const stopEvent = snapshot.events.find(
@@ -621,6 +625,7 @@ export function WorkspaceShell({
         citedIds={citedIds}
         runId={snapshot.runId}
         policy={snapshot.policy}
+        focusedEventId={focusedEventId}
       />
       {vulnerableResult?.result && snapshot.result?.verdict === "PASS" ? (
         <section className="comparison" aria-labelledby="comparison-title">
@@ -689,6 +694,12 @@ export function WorkspaceShell({
             </tbody>
           </table>
         </section>
+      ) : null}
+      {started ? (
+        <AiConsole
+          verdict={snapshot.result?.verdict ?? null}
+          onFocusEvent={setFocusedEventId}
+        />
       ) : null}
       <footer className="workspace__footer">
         <span>
