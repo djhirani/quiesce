@@ -23,14 +23,24 @@ export function QuiesceExperience() {
   const [vulnerableResult, setVulnerableResult] =
     useState<RuntimeSnapshot | null>(null);
   const [sweep, setSweep] = useState<QuiescenceSweepResult | null>(null);
+  const [sweepError, setSweepError] = useState<string | null>(null);
   const [selectedSweepPoint, setSelectedSweepPoint] = useState<string | null>(
+    null,
+  );
+  const [liveSnapshot, setLiveSnapshot] = useState<RuntimeSnapshot | null>(
     null,
   );
 
   useEffect(() => {
-    if (!snapshot.result || sweep) return;
-    void runQuiescenceSweep().then(setSweep);
-  }, [snapshot.result, sweep]);
+    if (!snapshot.result || sweep || sweepError) return;
+    void runQuiescenceSweep()
+      .then(setSweep)
+      .catch((error: unknown) => {
+        setSweepError(
+          error instanceof Error ? error.message : "sweep replay failed",
+        );
+      });
+  }, [snapshot.result, sweep, sweepError]);
 
   async function startRun() {
     if (snapshot.nextLegalCommand !== "START_RUN") return;
@@ -61,19 +71,31 @@ export function QuiesceExperience() {
   async function replayProtected() {
     if (snapshot.policy !== "vulnerable" || snapshot.result?.verdict !== "FAIL")
       return;
-    setVulnerableResult(snapshot);
+    setVulnerableResult(liveSnapshot ?? snapshot);
     const protectedAdapter = new SimulatedRuntimeAdapter("protected");
     await protectedAdapter.startScenario();
     await protectedAdapter.injectStop();
     setAdapter(protectedAdapter);
     setSnapshot(protectedAdapter.inspectRuntime());
     setSelectedEffectId(null);
+    setSelectedSweepPoint(null);
+    setLiveSnapshot(null);
     setStopStage("revealed");
   }
 
   function selectSweepPoint(point: SweepPointResult) {
+    setLiveSnapshot((previous) => previous ?? snapshot);
     setSnapshot(point.snapshot);
     setSelectedSweepPoint(`${point.policy}:${point.boundaryEventId}`);
+    setSelectedEffectId(null);
+    setStopStage("revealed");
+  }
+
+  function returnToRun() {
+    if (!liveSnapshot) return;
+    setSnapshot(liveSnapshot);
+    setLiveSnapshot(null);
+    setSelectedSweepPoint(null);
     setSelectedEffectId(null);
     setStopStage("revealed");
   }
@@ -156,8 +178,10 @@ export function QuiesceExperience() {
         selectedEffectId={selectedEffectId}
         onSelectEffect={setSelectedEffectId}
         sweep={sweep}
+        sweepError={sweepError}
         selectedSweepPoint={selectedSweepPoint}
         onSelectSweepPoint={selectSweepPoint}
+        onReturnToRun={returnToRun}
       />
       <p className="sr-only" aria-live="polite">
         {snapshot.result

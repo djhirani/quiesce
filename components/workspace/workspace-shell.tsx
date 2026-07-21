@@ -1,9 +1,11 @@
 import type { RuntimeSnapshot } from "@/lib/adapters/runtime-adapter";
 import type { CSSProperties } from "react";
+import type { AuthorityEvent } from "@/lib/domain/events";
 import type {
   QuiescenceSweepResult,
   SweepPointResult,
 } from "@/lib/domain/sweep";
+import { EvidenceLedger } from "@/components/evidence/evidence-ledger";
 
 const kindLabels = {
   human: "Human",
@@ -32,6 +34,13 @@ const effectPathIds = new Set([
   "effect-production-backup-deletion-01",
 ]);
 
+const traceChipTones: Record<string, string> = {
+  STOP_INJECTED: "stop",
+  EFFECT_COMMITTED: "breach",
+  EFFECT_REJECTED: "safe",
+  QUIESCENCE_REACHED: "quiescence",
+};
+
 export function WorkspaceShell({
   snapshot,
   stopStage,
@@ -42,8 +51,10 @@ export function WorkspaceShell({
   selectedEffectId,
   onSelectEffect,
   sweep,
+  sweepError,
   selectedSweepPoint,
   onSelectSweepPoint,
+  onReturnToRun,
 }: {
   snapshot: RuntimeSnapshot;
   stopStage: "idle" | "freeze" | "revealed";
@@ -54,8 +65,10 @@ export function WorkspaceShell({
   selectedEffectId: string | null;
   onSelectEffect: (id: string | null) => void;
   sweep: QuiescenceSweepResult | null;
+  sweepError: string | null;
   selectedSweepPoint: string | null;
   onSelectSweepPoint: (point: SweepPointResult) => void;
+  onReturnToRun: () => void;
 }) {
   const started = snapshot.events.length > 0;
   const ready = snapshot.phase === "ready_to_stop";
@@ -109,6 +122,24 @@ export function WorkspaceShell({
       }
     }
   }
+  const traceChips = stopEvent
+    ? [
+        snapshot.events[0],
+        stopEvent,
+        clockEvent,
+        committedEvent,
+        rejectedEvent,
+        quiescenceEvent,
+      ].filter((event): event is AuthorityEvent => Boolean(event))
+    : [];
+  const envelopeVisible = Boolean(sweep || sweepError || snapshot.result);
+  const activePoint =
+    sweep && selectedSweepPoint
+      ? [...sweep.injectionPoints, ...sweep.protectedPoints].find(
+          (point) =>
+            `${point.policy}:${point.boundaryEventId}` === selectedSweepPoint,
+        )
+      : null;
 
   return (
     <section
@@ -154,6 +185,18 @@ export function WorkspaceShell({
                     ? "STOP recorded. No post-STOP effect has occurred."
                     : "Recorded activity will appear here when a test begins."}
             </p>
+            {traceChips.length > 0 ? (
+              <ol className="trace-chips" aria-label="Key recorded events">
+                {traceChips.map((event) => (
+                  <li
+                    className={`trace-chip trace-chip--${traceChipTones[event.type] ?? "neutral"}`}
+                    key={event.eventId}
+                  >
+                    {`${event.eventId} · ${event.type}`}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
           </div>
           <div
             className={`signal-line ${stopEvent ? "signal-line--stopped" : ""} ${clockEvent ? "signal-line--advanced" : ""} ${committedEvent ? "signal-line--breach" : ""} ${quiescenceEvent ? "signal-line--flatline" : ""}`}
@@ -189,48 +232,116 @@ export function WorkspaceShell({
         </section>
       </div>
 
-      {sweep ? (
+      {envelopeVisible ? (
         <section className="shutdown-envelope" aria-labelledby="envelope-title">
           <div className="shutdown-envelope__heading">
             <span className="region-index">02A</span>
             <div>
               <h3 id="envelope-title">Shutdown Envelope</h3>
-              <p>
-                Earliest unsafe ·{" "}
-                {sweep.earliestUnsafeBoundary?.boundaryEventId} · Worst breach ·{" "}
-                {sweep.worstBreachBoundary?.boundaryEventId}
-              </p>
+              {sweep ? (
+                <div className="envelope-summary">
+                  <span className="envelope-chip envelope-chip--fail">
+                    Earliest unsafe ·{" "}
+                    {sweep.earliestUnsafeBoundary?.boundaryEventId}
+                  </span>
+                  <span className="envelope-chip envelope-chip--breach">
+                    Worst breach · {sweep.worstBreachBoundary?.boundaryEventId}
+                  </span>
+                </div>
+              ) : sweepError ? (
+                <p className="envelope-note envelope-note--error" role="alert">
+                  Sweep unavailable · {sweepError}
+                </p>
+              ) : (
+                <p className="envelope-note" role="status">
+                  Deriving injection points · replaying every authority
+                  boundary…
+                </p>
+              )}
+              <ul
+                className="envelope-legend"
+                aria-label="Sweep classification legend"
+              >
+                <li>
+                  <i
+                    className="legend-dot legend-dot--pass"
+                    aria-hidden="true"
+                  />
+                  PASS · quiescence proven
+                </li>
+                <li>
+                  <i
+                    className="legend-dot legend-dot--fail"
+                    aria-hidden="true"
+                  />
+                  FAIL · residual authority survives
+                </li>
+                <li>
+                  <i
+                    className="legend-dot legend-dot--breach"
+                    aria-hidden="true"
+                  />
+                  BREACH · effect commits after STOP
+                </li>
+              </ul>
             </div>
           </div>
-          <div className="envelope-runs">
-            {[
-              ["Vulnerable", sweep.injectionPoints],
-              ["Protected", sweep.protectedPoints],
-            ].map(([label, points]) => (
-              <div className="envelope-run" key={label as string}>
-                <span>{label as string}</span>
-                <div>
-                  {(points as readonly SweepPointResult[]).map((point) => {
-                    const selection = `${point.policy}:${point.boundaryEventId}`;
-                    return (
-                      <button
-                        className={`envelope-marker envelope-marker--${point.classification.toLowerCase()}`}
-                        type="button"
-                        aria-label={`${label} ${point.boundaryEventId} ${point.boundaryEventType} ${point.classification}`}
-                        aria-pressed={selectedSweepPoint === selection}
-                        onClick={() => onSelectSweepPoint(point)}
-                        key={selection}
-                      >
-                        <i />
-                        <code>{point.boundaryEventId}</code>
-                        <small>{point.classification}</small>
-                      </button>
-                    );
-                  })}
+          {sweep ? (
+            <div className="envelope-runs">
+              {[
+                ["Vulnerable", sweep.injectionPoints],
+                ["Protected", sweep.protectedPoints],
+              ].map(([label, points]) => (
+                <div className="envelope-run" key={label as string}>
+                  <span>{label as string}</span>
+                  <div>
+                    {(points as readonly SweepPointResult[]).map((point) => {
+                      const selection = `${point.policy}:${point.boundaryEventId}`;
+                      return (
+                        <button
+                          className={`envelope-marker envelope-marker--${point.classification.toLowerCase()}`}
+                          type="button"
+                          aria-label={`${label} ${point.boundaryEventId} ${point.boundaryEventType} ${point.classification}`}
+                          aria-pressed={selectedSweepPoint === selection}
+                          onClick={() => onSelectSweepPoint(point)}
+                          key={selection}
+                        >
+                          <i />
+                          <code>{point.boundaryEventId}</code>
+                          <span>{point.boundaryEventType}</span>
+                          <small>{point.classification}</small>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : !sweepError ? (
+            <div className="envelope-skeleton" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+              <span />
+              <span />
+              <span />
+              <span />
+            </div>
+          ) : null}
+          {activePoint ? (
+            <div className="envelope-context">
+              <span>
+                {`Viewing ${activePoint.policy} injection at ${activePoint.boundaryEventId} · ${activePoint.boundaryEventType} · ${activePoint.classification}`}
+              </span>
+              <button
+                className="return-control"
+                type="button"
+                onClick={onReturnToRun}
+              >
+                Return to full run
+              </button>
+            </div>
+          ) : null}
         </section>
       ) : null}
 
@@ -300,7 +411,17 @@ export function WorkspaceShell({
           <dl>
             <div>
               <dt>Status</dt>
-              <dd>
+              <dd
+                className={
+                  snapshot.result
+                    ? snapshot.result.verdict === "PASS"
+                      ? "value-pass"
+                      : "value-fail"
+                    : stopped
+                      ? "value-warn"
+                      : ""
+                }
+              >
                 {snapshot.result
                   ? snapshot.result.verdict === "PASS"
                     ? "PASSED"
@@ -336,7 +457,7 @@ export function WorkspaceShell({
             </div>
             <div>
               <dt>Time to quiescence</dt>
-              <dd>
+              <dd className={snapshot.result ? "value-ttq" : ""}>
                 {snapshot.result
                   ? snapshot.result.timeToQuiescenceMs === null
                     ? "NOT ACHIEVED"
@@ -494,74 +615,79 @@ export function WorkspaceShell({
         </aside>
       </div>
 
-      <section className="evidence-region" aria-labelledby="evidence-title">
-        <div className="region-heading">
-          <span className="region-index">05</span>
-          <h3 id="evidence-title">Evidence ledger</h3>
-        </div>
-        {started ? (
-          <div className="ledger-wrap">
-            <table className="ledger">
-              <thead>
-                <tr>
-                  <th>Event</th>
-                  <th>Time</th>
-                  <th>Type</th>
-                  <th>Actor</th>
-                  <th>Subject</th>
-                </tr>
-              </thead>
-              <tbody>
-                {snapshot.events.map((event) => (
-                  <tr
-                    className={citedIds.has(event.eventId) ? "is-cited" : ""}
-                    key={event.eventId}
-                  >
-                    <td>{event.eventId}</td>
-                    <td>{event.logicalTimeMs} ms</td>
-                    <td>{event.type}</td>
-                    <td>{event.actorId}</td>
-                    <td>{event.subjectId ?? "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p>
-            No events recorded. Start a shutdown test to create an append-only
-            evidence trail.
-          </p>
-        )}
-      </section>
-      {vulnerableResult && snapshot.result?.verdict === "PASS" ? (
+      <EvidenceLedger
+        events={snapshot.events}
+        started={started}
+        citedIds={citedIds}
+        runId={snapshot.runId}
+        policy={snapshot.policy}
+      />
+      {vulnerableResult?.result && snapshot.result?.verdict === "PASS" ? (
         <section className="comparison" aria-labelledby="comparison-title">
           <div className="region-heading">
             <span className="region-index">06</span>
             <h3 id="comparison-title">Vulnerable versus protected</h3>
           </div>
-          <div className="comparison__grid">
-            <article>
-              <span>Vulnerable</span>
-              <strong>FAILED</strong>
-              <p>
-                {vulnerableResult.result?.residualAuthorityIds.length} residual
-                · {vulnerableResult.result?.pendingWorkIds.length} pending ·{" "}
-                {vulnerableResult.result?.escapedEffectIds.length} escaped
-              </p>
-              <code>NOT ACHIEVED</code>
-            </article>
-            <article>
-              <span>Protected</span>
-              <strong>PASSED</strong>
-              <p>
-                {snapshot.result.residualAuthorityIds.length} residual ·{" "}
-                {snapshot.result.pendingWorkIds.length} pending ·{" "}
-                {snapshot.result.escapedEffectIds.length} escaped
-              </p>
-              <code>{snapshot.result.timeToQuiescenceMs} MS</code>
-            </article>
-          </div>
+          <table className="compare-table">
+            <thead>
+              <tr>
+                <th scope="col">Metric</th>
+                <th scope="col">Vulnerable run</th>
+                <th scope="col">Protected run</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Verdict</th>
+                <td
+                  className={
+                    vulnerableResult.result.verdict === "PASS"
+                      ? "is-pass"
+                      : "is-fail"
+                  }
+                >
+                  {vulnerableResult.result.verdict === "PASS"
+                    ? "PASSED"
+                    : "FAILED"}
+                </td>
+                <td
+                  className={
+                    snapshot.result.verdict === "PASS" ? "is-pass" : "is-fail"
+                  }
+                >
+                  {snapshot.result.verdict === "PASS" ? "PASSED" : "FAILED"}
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Residual authorities</th>
+                <td>{vulnerableResult.result.residualAuthorityIds.length}</td>
+                <td>{snapshot.result.residualAuthorityIds.length}</td>
+              </tr>
+              <tr>
+                <th scope="row">Pending work</th>
+                <td>{vulnerableResult.result.pendingWorkIds.length}</td>
+                <td>{snapshot.result.pendingWorkIds.length}</td>
+              </tr>
+              <tr>
+                <th scope="row">Escaped effects</th>
+                <td>{vulnerableResult.result.escapedEffectIds.length}</td>
+                <td>{snapshot.result.escapedEffectIds.length}</td>
+              </tr>
+              <tr>
+                <th scope="row">Time to quiescence</th>
+                <td>
+                  {vulnerableResult.result.timeToQuiescenceMs === null
+                    ? "NOT ACHIEVED"
+                    : `${vulnerableResult.result.timeToQuiescenceMs} MS`}
+                </td>
+                <td>
+                  {snapshot.result.timeToQuiescenceMs === null
+                    ? "NOT ACHIEVED"
+                    : `${snapshot.result.timeToQuiescenceMs} MS`}
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </section>
       ) : null}
       <footer className="workspace__footer">
