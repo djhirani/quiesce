@@ -1,9 +1,19 @@
-import type { SimulationCommand } from "@/lib/domain/commands";
+import type {
+  SimulationCommand,
+  SimulationPolicy,
+} from "@/lib/domain/commands";
 import type { AuthorityEvent } from "@/lib/domain/events";
-import { CloudCleanupScenario } from "./scenario";
+
+export interface ScenarioDriver {
+  readonly policy: SimulationPolicy;
+  startRun(): AuthorityEvent;
+  advanceToReady(boundaryEventIndex?: number): readonly AuthorityEvent[];
+  injectStop(): readonly AuthorityEvent[];
+  advanceClock(deltaMs: number): readonly AuthorityEvent[];
+}
 
 export function handleCommand(
-  scenario: CloudCleanupScenario,
+  scenario: ScenarioDriver,
   command: SimulationCommand,
 ): readonly AuthorityEvent[] {
   if (command.type === "START_RUN") {

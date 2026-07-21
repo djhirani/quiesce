@@ -16,6 +16,7 @@ export interface CommitFenceEvaluation {
 export function evaluateCommitFence(
   events: readonly AuthorityEvent[],
   issuedAuthorityEpoch: number,
+  credentialId: string = entityIds.credential,
 ): CommitFenceEvaluation {
   const advanced = events.findLast(
     (event) => event.type === "AUTHORITY_EPOCH_ADVANCED",
@@ -29,7 +30,7 @@ export function evaluateCommitFence(
     typeof gate?.payload.minimumValidAuthorityEpoch === "number"
       ? gate.payload.minimumValidAuthorityEpoch
       : issuedAuthorityEpoch;
-  const credentialStatus = projectStatuses(events)[entityIds.credential];
+  const credentialStatus = projectStatuses(events)[credentialId];
   const commitGateStatus = gate ? "sealed" : "open";
   const stale = issuedAuthorityEpoch < minimumValidAuthorityEpoch;
   const rejectionReason = stale

@@ -1,12 +1,13 @@
 "use client";
 
 import type { RuntimeSnapshot } from "@/lib/adapters/runtime-adapter";
-import { useState, type CSSProperties } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import type { AuthorityEvent } from "@/lib/domain/events";
 import type {
   QuiescenceSweepResult,
   SweepPointResult,
 } from "@/lib/domain/sweep";
+import type { ScenarioKey } from "@/lib/fixtures/incident-scenarios";
 import { AiConsole } from "@/components/ai/ai-console";
 import { CertificatePanel } from "@/components/certificate/certificate-panel";
 import { EvidenceLedger } from "@/components/evidence/evidence-ledger";
@@ -59,6 +60,9 @@ export function WorkspaceShell({
   selectedSweepPoint,
   onSelectSweepPoint,
   onReturnToRun,
+  scenarioKey = "cloud-cleanup",
+  scenarioLabel = "Cloud cleanup",
+  scenarioConsole = null,
 }: {
   snapshot: RuntimeSnapshot;
   stopStage: "idle" | "freeze" | "revealed";
@@ -73,6 +77,9 @@ export function WorkspaceShell({
   selectedSweepPoint: string | null;
   onSelectSweepPoint: (point: SweepPointResult) => void;
   onReturnToRun: () => void;
+  scenarioKey?: ScenarioKey;
+  scenarioLabel?: string;
+  scenarioConsole?: ReactNode;
 }) {
   const [focusedEventId, setFocusedEventId] = useState<string | null>(null);
   const started = snapshot.events.length > 0;
@@ -156,7 +163,7 @@ export function WorkspaceShell({
         <div>
           <span className="micro-label">Test instrument</span>
           <h2 id="workspace-title">
-            Cloud cleanup /{" "}
+            {scenarioLabel} /{" "}
             {snapshot.result
               ? snapshot.result.verdict === "PASS"
                 ? "protected proof complete"
@@ -175,6 +182,7 @@ export function WorkspaceShell({
           <span>SIMULATION</span>
         </div>
       </header>
+      {scenarioConsole}
 
       <div className="workspace__signals">
         <section className="signal-region" aria-labelledby="region-01">
@@ -696,7 +704,7 @@ export function WorkspaceShell({
           </table>
         </section>
       ) : null}
-      {started ? (
+      {started && scenarioKey === "cloud-cleanup" ? (
         <AiConsole
           verdict={snapshot.result?.verdict ?? null}
           onFocusEvent={setFocusedEventId}

@@ -4,6 +4,9 @@ export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: true,
   reporter: "list",
+  // The dev server compiles routes on demand; first hits can exceed the 5 s
+  // default under full-suite load.
+  expect: { timeout: 15_000 },
   use: {
     baseURL: "http://127.0.0.1:3000",
     trace: "retain-on-failure",

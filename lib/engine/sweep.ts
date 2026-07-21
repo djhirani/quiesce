@@ -5,6 +5,7 @@ import type {
   SweepClassification,
   SweepPointResult,
 } from "@/lib/domain/sweep";
+import type { ScenarioKey } from "@/lib/fixtures/incident-scenarios";
 
 const authorityChangingTypes = new Set([
   "RUN_STARTED",
@@ -24,8 +25,9 @@ function classify(snapshot: RuntimeSnapshot): SweepClassification {
 async function executePoint(
   boundaryEventIndex: number,
   policy: "vulnerable" | "protected",
+  scenario: ScenarioKey,
 ): Promise<SweepPointResult> {
-  const runtime = new SimulatedRuntimeAdapter(policy);
+  const runtime = new SimulatedRuntimeAdapter(policy, scenario);
   await runtime.startScenario(boundaryEventIndex);
   const boundary = runtime.inspectRuntime().events.at(-1);
   if (!boundary) throw new Error("Sweep boundary did not produce evidence.");
@@ -42,8 +44,10 @@ async function executePoint(
   });
 }
 
-export async function runQuiescenceSweep(): Promise<QuiescenceSweepResult> {
-  const baseline = new SimulatedRuntimeAdapter();
+export async function runQuiescenceSweep(
+  scenario: ScenarioKey = "cloud-cleanup",
+): Promise<QuiescenceSweepResult> {
+  const baseline = new SimulatedRuntimeAdapter("vulnerable", scenario);
   await baseline.startScenario();
   const boundaries = baseline
     .inspectRuntime()
@@ -52,8 +56,12 @@ export async function runQuiescenceSweep(): Promise<QuiescenceSweepResult> {
   const injectionPoints: SweepPointResult[] = [];
   const protectedPoints: SweepPointResult[] = [];
   for (const boundary of boundaries) {
-    injectionPoints.push(await executePoint(boundary.eventIndex, "vulnerable"));
-    protectedPoints.push(await executePoint(boundary.eventIndex, "protected"));
+    injectionPoints.push(
+      await executePoint(boundary.eventIndex, "vulnerable", scenario),
+    );
+    protectedPoints.push(
+      await executePoint(boundary.eventIndex, "protected", scenario),
+    );
   }
   const earliestUnsafeBoundary =
     injectionPoints.find(({ classification }) => classification !== "PASS") ??

@@ -3,7 +3,10 @@ import type {
   RuntimeSnapshot,
 } from "@/lib/adapters/runtime-adapter";
 import { AppendOnlyEventStore } from "@/lib/engine/event-store";
-import { handleCommand } from "@/lib/engine/command-handler";
+import {
+  handleCommand,
+  type ScenarioDriver,
+} from "@/lib/engine/command-handler";
 import { LogicalClock } from "@/lib/engine/logical-clock";
 import {
   projectEntities,
@@ -17,32 +20,70 @@ import {
   projectStatuses,
 } from "@/lib/engine/projectors";
 import { CloudCleanupScenario } from "@/lib/engine/scenario";
+import { ScriptedScenario } from "@/lib/engine/scripted-scenario";
 import { verifyQuiescence } from "@/lib/engine/verifier";
 import {
   CLOUD_CLEANUP_RUN_ID,
   CLOUD_CLEANUP_SEED,
 } from "@/lib/fixtures/cloud-cleanup";
+import {
+  getScriptedDefinition,
+  type ScenarioKey,
+} from "@/lib/fixtures/incident-scenarios";
+
+const CLOUD_READY_BOUNDARY = 11;
 
 export class SimulatedRuntimeAdapter implements AgentRuntimeAdapter {
   readonly #policy;
-  readonly #store = new AppendOnlyEventStore(
-    CLOUD_CLEANUP_RUN_ID,
-    CLOUD_CLEANUP_SEED,
-  );
+  readonly #scenarioKey: ScenarioKey;
+  readonly #runId: string;
+  readonly #scenarioSeed: string;
+  readonly #readyBoundary: number;
+  readonly #store: AppendOnlyEventStore;
   readonly #clock = new LogicalClock();
-  readonly #scenario;
+  readonly #scenario: ScenarioDriver;
 
-  constructor(policy: "vulnerable" | "protected" = "vulnerable") {
+  constructor(
+    policy: "vulnerable" | "protected" = "vulnerable",
+    scenarioKey: ScenarioKey = "cloud-cleanup",
+  ) {
     this.#policy = policy;
-    this.#scenario = new CloudCleanupScenario(this.#store, this.#clock, policy);
+    this.#scenarioKey = scenarioKey;
+    if (scenarioKey === "cloud-cleanup") {
+      this.#runId = CLOUD_CLEANUP_RUN_ID;
+      this.#scenarioSeed = CLOUD_CLEANUP_SEED;
+      this.#readyBoundary = CLOUD_READY_BOUNDARY;
+      this.#store = new AppendOnlyEventStore(this.#runId, this.#scenarioSeed);
+      this.#scenario = new CloudCleanupScenario(
+        this.#store,
+        this.#clock,
+        policy,
+      );
+    } else {
+      const definition = getScriptedDefinition(scenarioKey);
+      this.#runId = definition.runId;
+      this.#scenarioSeed = definition.scenarioSeed;
+      this.#readyBoundary = definition.build.length;
+      this.#store = new AppendOnlyEventStore(this.#runId, this.#scenarioSeed);
+      this.#scenario = new ScriptedScenario(
+        this.#store,
+        this.#clock,
+        policy,
+        definition,
+      );
+    }
   }
 
-  async startScenario(boundaryEventIndex = 11): Promise<void> {
+  get scenarioKey(): ScenarioKey {
+    return this.#scenarioKey;
+  }
+
+  async startScenario(boundaryEventIndex = this.#readyBoundary): Promise<void> {
     handleCommand(this.#scenario, {
       type: "START_RUN",
       policy: this.#policy,
     });
-    if (boundaryEventIndex === 11) {
+    if (boundaryEventIndex === this.#readyBoundary) {
       handleCommand(this.#scenario, { type: "ADVANCE_TO_READY" });
     } else {
       this.#scenario.advanceToReady(boundaryEventIndex);
@@ -62,9 +103,9 @@ export class SimulatedRuntimeAdapter implements AgentRuntimeAdapter {
     const graph = projectGraph(events);
     const result = verifyQuiescence(events);
     return Object.freeze({
-      runId: events.length > 0 ? CLOUD_CLEANUP_RUN_ID : null,
+      runId: events.length > 0 ? this.#runId : null,
       policy: this.#policy,
-      scenarioSeed: CLOUD_CLEANUP_SEED,
+      scenarioSeed: this.#scenarioSeed,
       logicalTimeMs: this.#clock.now(),
       phase: projectPhase(events),
       nextLegalCommand: projectNextLegalCommand(events),

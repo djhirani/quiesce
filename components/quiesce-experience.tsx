@@ -11,6 +11,15 @@ import type {
   SweepPointResult,
 } from "@/lib/domain/sweep";
 import { runQuiescenceSweep } from "@/lib/engine/sweep";
+import { runFullTestSuite, type SuiteRow } from "@/lib/engine/test-suite";
+import {
+  ScenarioConsole,
+  type SuiteState,
+} from "@/components/scenarios/scenario-console";
+import {
+  getScenarioDescriptor,
+  type ScenarioKey,
+} from "@/lib/fixtures/incident-scenarios";
 
 export function QuiesceExperience() {
   const [adapter, setAdapter] = useState(() => new SimulatedRuntimeAdapter());
@@ -31,17 +40,19 @@ export function QuiesceExperience() {
   const [liveSnapshot, setLiveSnapshot] = useState<RuntimeSnapshot | null>(
     null,
   );
+  const [scenarioKey, setScenarioKey] = useState<ScenarioKey>("cloud-cleanup");
+  const [suite, setSuite] = useState<SuiteState>({ phase: "idle", rows: [] });
 
   useEffect(() => {
     if (!snapshot.result || sweep || sweepError) return;
-    void runQuiescenceSweep()
+    void runQuiescenceSweep(scenarioKey)
       .then(setSweep)
       .catch((error: unknown) => {
         setSweepError(
           error instanceof Error ? error.message : "sweep replay failed",
         );
       });
-  }, [snapshot.result, sweep, sweepError]);
+  }, [snapshot.result, sweep, sweepError, scenarioKey]);
 
   async function startRun() {
     if (snapshot.nextLegalCommand !== "START_RUN") return;
@@ -73,7 +84,10 @@ export function QuiesceExperience() {
     if (snapshot.policy !== "vulnerable" || snapshot.result?.verdict !== "FAIL")
       return;
     setVulnerableResult(liveSnapshot ?? snapshot);
-    const protectedAdapter = new SimulatedRuntimeAdapter("protected");
+    const protectedAdapter = new SimulatedRuntimeAdapter(
+      "protected",
+      scenarioKey,
+    );
     await protectedAdapter.startScenario();
     await protectedAdapter.injectStop();
     setAdapter(protectedAdapter);
@@ -89,6 +103,39 @@ export function QuiesceExperience() {
     setSnapshot(point.snapshot);
     setSelectedSweepPoint(`${point.policy}:${point.boundaryEventId}`);
     setSelectedEffectId(null);
+    setStopStage("revealed");
+  }
+
+  function selectScenario(key: ScenarioKey) {
+    if (key === scenarioKey) return;
+    const nextAdapter = new SimulatedRuntimeAdapter("vulnerable", key);
+    setScenarioKey(key);
+    setAdapter(nextAdapter);
+    setSnapshot(nextAdapter.inspectRuntime());
+    setStopStage("idle");
+    setSelectedEffectId(null);
+    setVulnerableResult(null);
+    setSweep(null);
+    setSweepError(null);
+    setSelectedSweepPoint(null);
+    setLiveSnapshot(null);
+  }
+
+  async function runSuite() {
+    if (suite.phase === "running") return;
+    setSuite({ phase: "running", rows: [] });
+    setSuite({ phase: "done", rows: await runFullTestSuite() });
+  }
+
+  function selectSuiteRow(row: SuiteRow) {
+    setScenarioKey(row.scenario);
+    setSnapshot(row.snapshot);
+    setSelectedEffectId(null);
+    setVulnerableResult(null);
+    setSweep(null);
+    setSweepError(null);
+    setSelectedSweepPoint(null);
+    setLiveSnapshot(null);
     setStopStage("revealed");
   }
 
@@ -188,6 +235,17 @@ export function QuiesceExperience() {
         selectedSweepPoint={selectedSweepPoint}
         onSelectSweepPoint={selectSweepPoint}
         onReturnToRun={returnToRun}
+        scenarioKey={scenarioKey}
+        scenarioLabel={getScenarioDescriptor(scenarioKey).label}
+        scenarioConsole={
+          <ScenarioConsole
+            activeKey={scenarioKey}
+            onSelectScenario={selectScenario}
+            suite={suite}
+            onRunSuite={runSuite}
+            onSelectSuiteRow={selectSuiteRow}
+          />
+        }
       />
       <p className="sr-only" aria-live="polite">
         {snapshot.result
