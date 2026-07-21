@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { memo, useState } from "react";
 import {
   CLOUD_CLEANUP_COMPILE_INPUT,
   type ContractCompileOutcome,
@@ -64,7 +64,7 @@ function CitationChips({
   );
 }
 
-export function AiConsole({
+export const AiConsole = memo(function AiConsole({
   verdict,
   onFocusEvent,
 }: {
@@ -366,4 +366,4 @@ export function AiConsole({
       </div>
     </section>
   );
-}
+});

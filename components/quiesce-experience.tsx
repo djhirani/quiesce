@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { SimulatedRuntimeAdapter } from "@/lib/adapters/simulated-runtime";
 import type { RuntimeSnapshot } from "@/lib/adapters/runtime-adapter";
@@ -119,9 +120,14 @@ export function QuiesceExperience() {
         <div className="hero__grid" aria-hidden="true" />
         <header className="hero__nav">
           <Wordmark />
-          <span className="simulation-badge">
-            <i /> Deterministic simulation
-          </span>
+          <nav className="hero__links" aria-label="Site">
+            <Link className="nav-link" href="/methodology">
+              Methodology
+            </Link>
+            <span className="simulation-badge">
+              <i /> Deterministic simulation
+            </span>
+          </nav>
         </header>
         <div className="hero__content">
           <p className="eyebrow">

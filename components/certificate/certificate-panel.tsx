@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import type { RuntimeSnapshot } from "@/lib/adapters/runtime-adapter";
 import {
   generateCertificateBundle,
@@ -30,7 +30,11 @@ function download(filename: string, bytes: string, type: string) {
   URL.revokeObjectURL(url);
 }
 
-export function CertificatePanel({ snapshot }: { snapshot: RuntimeSnapshot }) {
+export const CertificatePanel = memo(function CertificatePanel({
+  snapshot,
+}: {
+  snapshot: RuntimeSnapshot;
+}) {
   const [state, setState] = useState<BundleState>({ phase: "generating" });
   const [viewOpen, setViewOpen] = useState(false);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">(
@@ -194,4 +198,4 @@ export function CertificatePanel({ snapshot }: { snapshot: RuntimeSnapshot }) {
       )}
     </section>
   );
-}
+});

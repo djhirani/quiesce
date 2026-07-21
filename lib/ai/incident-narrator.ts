@@ -118,8 +118,13 @@ const NARRATOR_INSTRUCTIONS = [
   "already decided and must not be restated differently, judged, or altered.",
   "Explain the findings using only the provided evidence. Every factual claim",
   "must cite event IDs from the provided allow-list. Use only entity IDs that",
-  "appear in the evidence. Do not include reasoning steps or any content",
-  "outside the required JSON structure.",
+  "appear in the evidence. survivors means residual authorities ONLY: list",
+  "exactly the entities given in residualEntities and no others. Pending",
+  "queues, scheduled jobs awaiting triggers, retries, and every other item of",
+  "pending work must NOT appear in survivors; for example,",
+  "queue-development-cache-01 is pending work, never a survivor. escapedEffects",
+  "must name only the entities given in escapedEffects. Do not include",
+  "reasoning steps or any content outside the required JSON structure.",
 ].join(" ");
 
 export async function narrateIncident(

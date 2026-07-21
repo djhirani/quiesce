@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import type { SimulationPolicy } from "@/lib/domain/commands";
 import type { AuthorityEvent, AuthorityEventType } from "@/lib/domain/events";
 
@@ -12,7 +12,7 @@ const rowTones: Partial<Record<AuthorityEventType, string>> = {
   QUIESCENCE_REACHED: "quiescence",
 };
 
-export function EvidenceLedger({
+export const EvidenceLedger = memo(function EvidenceLedger({
   events,
   started,
   citedIds,
@@ -183,4 +183,4 @@ export function EvidenceLedger({
       )}
     </section>
   );
-}
+});

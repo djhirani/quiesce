@@ -13,7 +13,8 @@
     "test": "vitest run",
     "test:smoke": "vitest run tests/smoke",
     "test:e2e": "playwright test",
-    "verify:certificate": "tsx scripts/verify-certificate.ts"
+    "verify:certificate": "tsx scripts/verify-certificate.ts",
+    "scan:secrets": "! git grep -nE 'sk-(proj-)?[A-Za-z0-9_-]{20}|AIza[A-Za-z0-9_-]{30}|OPENAI_API_KEY=[A-Za-z0-9]' -- . ':!package-lock.json'"
   },
   "dependencies": {
     "@xyflow/react": "latest",

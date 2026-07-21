@@ -11,7 +11,11 @@ export default defineConfig({
   webServer: {
     command: "npm run dev",
     url: "http://127.0.0.1:3000",
-    reuseExistingServer: !process.env.CI,
+    // Never reuse a developer's server: e2e must run against a hermetic
+    // instance with the model key stripped so tests are deterministic and can
+    // never make live model calls.
+    reuseExistingServer: false,
+    env: { ...process.env, OPENAI_API_KEY: "" },
   },
   projects: [
     {
