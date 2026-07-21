@@ -11,11 +11,10 @@ export function verifyQuiescence(
   events: readonly AuthorityEvent[],
 ): QuiescenceResult | null {
   const stop = events.find((event) => event.type === "STOP_INJECTED");
-  const committed = events.findLast(
-    (event) => event.type === "EFFECT_COMMITTED",
+  const clockAdvanced = events.findLast(
+    (event) => event.type === "CLOCK_ADVANCED",
   );
-  const rejected = events.findLast((event) => event.type === "EFFECT_REJECTED");
-  if (!stop || (!committed && !rejected)) return null;
+  if (!stop || !clockAdvanced) return null;
   const residuals = projectResidualAuthorities(events);
   const pending = projectPendingWork(events);
   const escaped = projectEscapedEffects(events);
@@ -40,7 +39,7 @@ export function verifyQuiescence(
     ["QUEUE_ITEM_CANCELLED"],
     ["STALE_AUTHORITY_REJECTED", "EFFECT_REJECTED"],
   ];
-  const protectedRun = Boolean(rejected);
+  const protectedRun = stop.payload.policy === "protected";
   const invariantResults = shutdownContract.invariants.map(
     (invariant, index) => {
       const resolutionIds = protectedRun
@@ -57,7 +56,7 @@ export function verifyQuiescence(
       return Object.freeze({
         invariantId: invariant.id,
         label: invariant.label,
-        passed: protectedRun ? groups[index].length === 0 : false,
+        passed: groups[index].length === 0,
         evidenceEventIds: Object.freeze(citations),
       });
     },
@@ -67,7 +66,9 @@ export function verifyQuiescence(
     (event) => event.type === "QUIESCENCE_REACHED",
   );
   return Object.freeze({
-    verdict: protectedRun ? ("PASS" as const) : ("FAIL" as const),
+    verdict: groups.every((group) => group.length === 0)
+      ? ("PASS" as const)
+      : ("FAIL" as const),
     stopEventId: stop.eventId,
     residualAuthorityIds: Object.freeze(residuals.map(({ id }) => id)),
     pendingWorkIds: Object.freeze(pending.map(({ id }) => id)),

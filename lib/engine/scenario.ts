@@ -46,7 +46,7 @@ export class CloudCleanupScenario {
     });
   }
 
-  advanceToReady(): readonly AuthorityEvent[] {
+  advanceToReady(boundaryEventIndex = 11): readonly AuthorityEvent[] {
     const history = this.#store.history();
     if (history.length !== 1 || history[0]?.type !== "RUN_STARTED") {
       throw new Error("Scenario can advance only after RUN_STARTED.");
@@ -72,10 +72,22 @@ export class CloudCleanupScenario {
       return event;
     };
 
+    if (
+      !Number.isInteger(boundaryEventIndex) ||
+      boundaryEventIndex < 1 ||
+      boundaryEventIndex > 11
+    ) {
+      throw new Error(
+        "Scenario boundary must be an event index from 1 through 11.",
+      );
+    }
+    if (boundaryEventIndex === 1) return this.#store.history();
+
     append("RESOURCE_INSPECTED", entityIds.root, null, null, {
       resourceIds: ["development-instance-01", "development-instance-02"],
       environment: "development",
     });
+    if (boundaryEventIndex === 2) return this.#store.history();
     append(
       "SAFE_EFFECT_COMMITTED",
       entityIds.root,
@@ -90,6 +102,7 @@ export class CloudCleanupScenario {
         simulated: true,
       },
     );
+    if (boundaryEventIndex === 3) return this.#store.history();
     append(
       "SAFE_EFFECT_COMMITTED",
       entityIds.root,
@@ -104,11 +117,13 @@ export class CloudCleanupScenario {
         simulated: true,
       },
     );
+    if (boundaryEventIndex === 4) return this.#store.history();
     append("AGENT_SPAWNED", entityIds.root, entityIds.child, entityIds.root, {
       entity: entities.child,
       edge: edge("spawned", entityIds.root, entityIds.child),
       simulated: true,
     });
+    if (boundaryEventIndex === 5) return this.#store.history();
     append(
       "CREDENTIAL_ISSUED",
       entityIds.root,
@@ -122,6 +137,7 @@ export class CloudCleanupScenario {
         simulated: true,
       },
     );
+    if (boundaryEventIndex === 6) return this.#store.history();
     append("JOB_SCHEDULED", entityIds.child, entityIds.job, entityIds.child, {
       entity: entities.job,
       edge: edge("schedules", entityIds.child, entityIds.job),
@@ -129,12 +145,14 @@ export class CloudCleanupScenario {
       action: "delete_inactive_resource",
       simulated: true,
     });
+    if (boundaryEventIndex === 7) return this.#store.history();
     append("RETRY_ENABLED", entityIds.job, entityIds.retry, entityIds.job, {
       entity: entities.retry,
       edge: edge("retries", entityIds.job, entityIds.retry),
       maximumAttempts: 3,
       simulated: true,
     });
+    if (boundaryEventIndex === 8) return this.#store.history();
     append(
       "ACTION_QUEUED",
       entityIds.job,
@@ -152,6 +170,7 @@ export class CloudCleanupScenario {
         simulated: true,
       },
     );
+    if (boundaryEventIndex === 9) return this.#store.history();
     append(
       "ACTION_QUEUED",
       entityIds.retry,
@@ -169,6 +188,7 @@ export class CloudCleanupScenario {
         simulated: true,
       },
     );
+    if (boundaryEventIndex === 10) return this.#store.history();
     append("SCENARIO_READY", entityIds.root, entityIds.root, entityIds.human, {
       queuedActionIds: [entityIds.developmentQueue, entityIds.backupQueue],
       simulated: true,
@@ -211,6 +231,12 @@ export class CloudCleanupScenario {
       issuedAuthorityEpoch: null,
       payload: { deltaMs: 300_000, horizonMs, simulated: true },
     });
+    const hasBackupWork = history.some(
+      (event) =>
+        event.type === "ACTION_QUEUED" &&
+        event.subjectId === entityIds.backupQueue,
+    );
+    if (!hasBackupWork) return this.#store.history();
     if (this.#policy === "protected") {
       return this.#attemptProtectedEffect(clockAdvanced);
     }

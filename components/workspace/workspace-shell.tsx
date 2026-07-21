@@ -1,5 +1,9 @@
 import type { RuntimeSnapshot } from "@/lib/adapters/runtime-adapter";
 import type { CSSProperties } from "react";
+import type {
+  QuiescenceSweepResult,
+  SweepPointResult,
+} from "@/lib/domain/sweep";
 
 const kindLabels = {
   human: "Human",
@@ -37,6 +41,9 @@ export function WorkspaceShell({
   vulnerableResult,
   selectedEffectId,
   onSelectEffect,
+  sweep,
+  selectedSweepPoint,
+  onSelectSweepPoint,
 }: {
   snapshot: RuntimeSnapshot;
   stopStage: "idle" | "freeze" | "revealed";
@@ -46,6 +53,9 @@ export function WorkspaceShell({
   vulnerableResult: RuntimeSnapshot | null;
   selectedEffectId: string | null;
   onSelectEffect: (id: string | null) => void;
+  sweep: QuiescenceSweepResult | null;
+  selectedSweepPoint: string | null;
+  onSelectSweepPoint: (point: SweepPointResult) => void;
 }) {
   const started = snapshot.events.length > 0;
   const ready = snapshot.phase === "ready_to_stop";
@@ -178,6 +188,51 @@ export function WorkspaceShell({
           </div>
         </section>
       </div>
+
+      {sweep ? (
+        <section className="shutdown-envelope" aria-labelledby="envelope-title">
+          <div className="shutdown-envelope__heading">
+            <span className="region-index">02A</span>
+            <div>
+              <h3 id="envelope-title">Shutdown Envelope</h3>
+              <p>
+                Earliest unsafe ·{" "}
+                {sweep.earliestUnsafeBoundary?.boundaryEventId} · Worst breach ·{" "}
+                {sweep.worstBreachBoundary?.boundaryEventId}
+              </p>
+            </div>
+          </div>
+          <div className="envelope-runs">
+            {[
+              ["Vulnerable", sweep.injectionPoints],
+              ["Protected", sweep.protectedPoints],
+            ].map(([label, points]) => (
+              <div className="envelope-run" key={label as string}>
+                <span>{label as string}</span>
+                <div>
+                  {(points as readonly SweepPointResult[]).map((point) => {
+                    const selection = `${point.policy}:${point.boundaryEventId}`;
+                    return (
+                      <button
+                        className={`envelope-marker envelope-marker--${point.classification.toLowerCase()}`}
+                        type="button"
+                        aria-label={`${label} ${point.boundaryEventId} ${point.boundaryEventType} ${point.classification}`}
+                        aria-pressed={selectedSweepPoint === selection}
+                        onClick={() => onSelectSweepPoint(point)}
+                        key={selection}
+                      >
+                        <i />
+                        <code>{point.boundaryEventId}</code>
+                        <small>{point.classification}</small>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <div className="workspace__core">
         <section className="graph-region" aria-labelledby="graph-title">
@@ -372,7 +427,9 @@ export function WorkspaceShell({
               </p>
               <strong>
                 {snapshot.result.verdict === "PASS"
-                  ? `Stale authority rejected by ${rejectedEvent?.eventId}.`
+                  ? rejectedEvent
+                    ? `Stale authority rejected by ${rejectedEvent.eventId}.`
+                    : "No residual authority or pending work remained."
                   : "One material simulated effect committed after STOP."}
               </strong>
               <dl>

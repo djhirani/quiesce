@@ -15,7 +15,7 @@ export function applyVulnerableStop(
   if (history.some((event) => event.type === "STOP_INJECTED")) {
     throw new Error("STOP has already been injected.");
   }
-  if (history.at(-1)?.type !== "SCENARIO_READY") {
+  if (history.length === 0) {
     throw new Error("STOP requires SCENARIO_READY.");
   }
 
@@ -62,7 +62,7 @@ export function applyProtectedStop(
   if (history.some((event) => event.type === "STOP_INJECTED")) {
     throw new Error("STOP has already been injected.");
   }
-  if (history.at(-1)?.type !== "SCENARIO_READY") {
+  if (history.length === 0) {
     throw new Error("STOP requires SCENARIO_READY.");
   }
 
@@ -116,7 +116,11 @@ export function applyProtectedStop(
     gateStatus: "sealed",
     simulated: true,
   });
+  const presentIds = new Set(
+    history.map((event) => event.payload.entity?.id).filter(Boolean),
+  );
   for (const queueId of [entityIds.developmentQueue, entityIds.backupQueue]) {
+    if (!presentIds.has(queueId)) continue;
     const queue =
       queueId === entityIds.developmentQueue
         ? cloudCleanupEntities.developmentQueue
@@ -127,22 +131,26 @@ export function applyProtectedStop(
       simulated: true,
     });
   }
-  append("JOB_CANCELLED", entityIds.root, entityIds.job, {
-    entity: { ...cloudCleanupEntities.job, status: "cancelled" },
-    simulated: true,
-  });
-  append("RETRY_DISABLED", entityIds.root, entityIds.retry, {
-    entity: { ...cloudCleanupEntities.retry, status: "cancelled" },
-    simulated: true,
-  });
-  append("CREDENTIAL_REVOKED", entityIds.root, entityIds.credential, {
-    entity: { ...cloudCleanupEntities.credential, status: "revoked" },
-    simulated: true,
-  });
-  append("AGENT_TERMINATED", entityIds.root, entityIds.child, {
-    entity: { ...cloudCleanupEntities.child, status: "terminated" },
-    simulated: true,
-  });
+  if (presentIds.has(entityIds.job))
+    append("JOB_CANCELLED", entityIds.root, entityIds.job, {
+      entity: { ...cloudCleanupEntities.job, status: "cancelled" },
+      simulated: true,
+    });
+  if (presentIds.has(entityIds.retry))
+    append("RETRY_DISABLED", entityIds.root, entityIds.retry, {
+      entity: { ...cloudCleanupEntities.retry, status: "cancelled" },
+      simulated: true,
+    });
+  if (presentIds.has(entityIds.credential))
+    append("CREDENTIAL_REVOKED", entityIds.root, entityIds.credential, {
+      entity: { ...cloudCleanupEntities.credential, status: "revoked" },
+      simulated: true,
+    });
+  if (presentIds.has(entityIds.child))
+    append("AGENT_TERMINATED", entityIds.root, entityIds.child, {
+      entity: { ...cloudCleanupEntities.child, status: "terminated" },
+      simulated: true,
+    });
   append("AGENT_TERMINATED", entityIds.human, entityIds.root, {
     entity: { ...cloudCleanupEntities.root, status: "terminated" },
     simulated: true,

@@ -1,10 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SimulatedRuntimeAdapter } from "@/lib/adapters/simulated-runtime";
 import type { RuntimeSnapshot } from "@/lib/adapters/runtime-adapter";
 import { Wordmark } from "@/components/brand/wordmark";
 import { WorkspaceShell } from "@/components/workspace/workspace-shell";
+import type {
+  QuiescenceSweepResult,
+  SweepPointResult,
+} from "@/lib/domain/sweep";
+import { runQuiescenceSweep } from "@/lib/engine/sweep";
 
 export function QuiesceExperience() {
   const [adapter, setAdapter] = useState(() => new SimulatedRuntimeAdapter());
@@ -17,6 +22,15 @@ export function QuiesceExperience() {
   const [selectedEffectId, setSelectedEffectId] = useState<string | null>(null);
   const [vulnerableResult, setVulnerableResult] =
     useState<RuntimeSnapshot | null>(null);
+  const [sweep, setSweep] = useState<QuiescenceSweepResult | null>(null);
+  const [selectedSweepPoint, setSelectedSweepPoint] = useState<string | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (!snapshot.result || sweep) return;
+    void runQuiescenceSweep().then(setSweep);
+  }, [snapshot.result, sweep]);
 
   async function startRun() {
     if (snapshot.nextLegalCommand !== "START_RUN") return;
@@ -53,6 +67,13 @@ export function QuiesceExperience() {
     await protectedAdapter.injectStop();
     setAdapter(protectedAdapter);
     setSnapshot(protectedAdapter.inspectRuntime());
+    setSelectedEffectId(null);
+    setStopStage("revealed");
+  }
+
+  function selectSweepPoint(point: SweepPointResult) {
+    setSnapshot(point.snapshot);
+    setSelectedSweepPoint(`${point.policy}:${point.boundaryEventId}`);
     setSelectedEffectId(null);
     setStopStage("revealed");
   }
@@ -134,6 +155,9 @@ export function QuiesceExperience() {
         vulnerableResult={vulnerableResult}
         selectedEffectId={selectedEffectId}
         onSelectEffect={setSelectedEffectId}
+        sweep={sweep}
+        selectedSweepPoint={selectedSweepPoint}
+        onSelectSweepPoint={selectSweepPoint}
       />
       <p className="sr-only" aria-live="polite">
         {snapshot.result

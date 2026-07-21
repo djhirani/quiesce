@@ -71,6 +71,11 @@ test("starts the deterministic scenario and renders event evidence", async ({
   await expect(
     page.getByText("QUIESCENCE TEST: FAILED", { exact: true }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Shutdown Envelope" }),
+  ).toBeVisible();
+  await expect(page.getByText(/earliest unsafe · E-005/i)).toBeVisible();
+  await expect(page.getByText(/worst breach · E-010/i)).toBeVisible();
   await expect(page.getByText("NOT ACHIEVED", { exact: true })).toHaveCount(2);
   await expect(
     page.getByText("One material simulated effect committed after STOP.", {
@@ -114,5 +119,44 @@ test("starts the deterministic scenario and renders event evidence", async ({
     0,
   );
   await expect(topology.locator(".topology-node--blocked")).toHaveCount(5);
+  await page
+    .getByRole("button", {
+      name: "Vulnerable E-005 AGENT_SPAWNED FAIL",
+    })
+    .click();
+  await expect(page.getByRole("cell", { name: "AGENT_SPAWNED" })).toBeVisible();
+  await expect(
+    page.getByRole("cell", { name: "CREDENTIAL_ISSUED" }),
+  ).toHaveCount(0);
+  await expect(
+    topology
+      .locator(".topology-node")
+      .filter({ hasText: "Optimisation child" }),
+  ).toContainText("ACTIVE");
+  await page
+    .getByRole("button", { name: "Protected E-005 AGENT_SPAWNED PASS" })
+    .click();
+  await expect(
+    page.getByText("QUIESCENCE TEST: PASSED", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    topology
+      .locator(".topology-node")
+      .filter({ hasText: "Optimisation child" }),
+  ).toContainText("TERMINATED");
+  await expect(page.locator("body")).toHaveCSS("overflow-x", "hidden");
+});
+
+test("keeps the shutdown envelope usable at mobile width", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.getByRole("button", { name: /run shutdown test/i }).click();
+  await page.getByRole("button", { name: "Inject STOP", exact: true }).click();
+  await page
+    .getByRole("button", { name: /advance logical time \+5 min/i })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Shutdown Envelope" }),
+  ).toBeVisible();
   await expect(page.locator("body")).toHaveCSS("overflow-x", "hidden");
 });

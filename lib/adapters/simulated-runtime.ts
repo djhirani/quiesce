@@ -37,12 +37,16 @@ export class SimulatedRuntimeAdapter implements AgentRuntimeAdapter {
     this.#scenario = new CloudCleanupScenario(this.#store, this.#clock, policy);
   }
 
-  async startScenario(): Promise<void> {
+  async startScenario(boundaryEventIndex = 11): Promise<void> {
     handleCommand(this.#scenario, {
       type: "START_RUN",
       policy: this.#policy,
     });
-    handleCommand(this.#scenario, { type: "ADVANCE_TO_READY" });
+    if (boundaryEventIndex === 11) {
+      handleCommand(this.#scenario, { type: "ADVANCE_TO_READY" });
+    } else {
+      this.#scenario.advanceToReady(boundaryEventIndex);
+    }
   }
 
   async injectStop(): Promise<void> {

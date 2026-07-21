@@ -408,6 +408,100 @@ a {
   grid-template-columns: minmax(0, 1fr) 315px;
   border-bottom: 1px solid var(--line);
 }
+.shutdown-envelope {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.32fr) 1fr;
+  gap: 1.2rem;
+  padding: 1rem 1.3rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-strong);
+}
+.shutdown-envelope__heading {
+  display: flex;
+  gap: 0.9rem;
+}
+.shutdown-envelope h3 {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.shutdown-envelope p {
+  margin: 0.45rem 0 0;
+  color: var(--subtle);
+  font:
+    400 0.58rem/1.45 var(--font-mono),
+    monospace;
+  text-transform: uppercase;
+}
+.envelope-runs {
+  display: grid;
+  gap: 0.55rem;
+}
+.envelope-run {
+  display: grid;
+  grid-template-columns: 5rem 1fr;
+  align-items: center;
+  gap: 0.7rem;
+}
+.envelope-run > span {
+  color: var(--muted);
+  font:
+    500 0.58rem/1 var(--font-mono),
+    monospace;
+  text-transform: uppercase;
+}
+.envelope-run > div {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(54px, 1fr));
+  gap: 0.35rem;
+}
+.envelope-marker {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.22rem 0.35rem;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid var(--line-strong);
+  padding: 0.42rem;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+.envelope-marker i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--still);
+}
+.envelope-marker code,
+.envelope-marker small {
+  font:
+    500 0.52rem/1 var(--font-mono),
+    monospace;
+}
+.envelope-marker small {
+  grid-column: 2;
+  color: var(--still);
+}
+.envelope-marker--fail i {
+  background: var(--live);
+}
+.envelope-marker--fail small {
+  color: var(--live);
+}
+.envelope-marker--breach i {
+  background: var(--breach);
+}
+.envelope-marker--breach small {
+  color: var(--breach);
+}
+.envelope-marker[aria-pressed="true"] {
+  border-color: var(--focus);
+  background: rgba(167, 216, 255, 0.06);
+}
 .graph-region {
   display: grid;
   grid-template-rows: auto 1fr;
@@ -1050,6 +1144,16 @@ a {
   }
   .workspace__core {
     grid-template-columns: 1fr;
+  }
+  .shutdown-envelope {
+    grid-template-columns: 1fr;
+  }
+  .envelope-run {
+    grid-template-columns: 1fr;
+  }
+  .envelope-run > div {
+    grid-template-columns: repeat(7, minmax(62px, 1fr));
+    overflow-x: auto;
   }
   .graph-region {
     min-height: 360px;
