@@ -201,3 +201,48 @@ test("proposes a contract and explains incidents with graceful model fallback", 
     ),
   ).toBeVisible();
 });
+
+test("generates and verifies a tamper-evident certificate after completion", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /run shutdown test/i }).click();
+  await expect(
+    page.getByRole("heading", { name: "Quiescence Certificate" }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "Inject STOP", exact: true }).click();
+  await page
+    .getByRole("button", { name: /advance logical time \+5 min/i })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Quiescence Certificate" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Tamper-evident local test record.", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText(/not a legal certificate/i)).toBeVisible();
+  await page
+    .getByRole("button", { name: "View certificate", exact: true })
+    .click();
+  await expect(page.getByLabel("Certificate envelope JSON")).toContainText(
+    '"certificate_id":"QC-',
+  );
+  await expect(page.getByLabel("Certificate envelope JSON")).toContainText(
+    '"verdict":"FAIL"',
+  );
+  await page
+    .getByRole("button", { name: "Verify certificate", exact: true })
+    .click();
+  await expect(page.getByText(/^VALID · QC-/)).toBeVisible();
+  await page.getByRole("button", { name: "Replay protected" }).click();
+  await page
+    .getByRole("button", { name: /advance logical time \+5 min/i })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Quiescence Certificate" }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Verify certificate", exact: true })
+    .click();
+  await expect(page.getByText(/^VALID · QC-/)).toBeVisible();
+});

@@ -8,6 +8,7 @@ import type {
   SweepPointResult,
 } from "@/lib/domain/sweep";
 import { AiConsole } from "@/components/ai/ai-console";
+import { CertificatePanel } from "@/components/certificate/certificate-panel";
 import { EvidenceLedger } from "@/components/evidence/evidence-ledger";
 
 const kindLabels = {
@@ -699,6 +700,12 @@ export function WorkspaceShell({
         <AiConsole
           verdict={snapshot.result?.verdict ?? null}
           onFocusEvent={setFocusedEventId}
+        />
+      ) : null}
+      {snapshot.phase === "test_complete" && snapshot.result ? (
+        <CertificatePanel
+          key={`${snapshot.policy}:${snapshot.result.stopEventId}:${snapshot.events.length}`}
+          snapshot={snapshot}
         />
       ) : null}
       <footer className="workspace__footer">

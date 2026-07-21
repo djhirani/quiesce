@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:smoke": "vitest run tests/smoke",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "verify:certificate": "tsx scripts/verify-certificate.ts"
   },
   "dependencies": {
     "@xyflow/react": "latest",
@@ -40,6 +41,7 @@
     "postcss": "latest",
     "prettier": "latest",
     "tailwindcss": "latest",
+    "tsx": "latest",
     "typescript": "latest",
     "vitest": "latest"
   }

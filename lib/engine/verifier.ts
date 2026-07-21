@@ -7,6 +7,8 @@ import {
   projectResidualAuthorities,
 } from "./projectors";
 
+export const VERIFIER_VERSION = "1.0.0";
+
 export function verifyQuiescence(
   events: readonly AuthorityEvent[],
 ): QuiescenceResult | null {

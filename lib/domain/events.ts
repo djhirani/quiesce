@@ -52,8 +52,8 @@ export interface AuthorityEvent<
   readonly authorityEpoch: number | null;
   readonly issuedAuthorityEpoch: number | null;
   readonly payload: TPayload;
-  readonly previousEventHash: null;
-  readonly eventHash: null;
+  readonly previousEventHash: string | null;
+  readonly eventHash: string | null;
 }
 
 export type NewAuthorityEvent = Omit<
