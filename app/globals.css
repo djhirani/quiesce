@@ -176,10 +176,16 @@ a {
   text-transform: uppercase;
 }
 .wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
   font-family: var(--font-display), sans-serif;
   font-size: 0.86rem;
   font-weight: 600;
   letter-spacing: 0.28em;
+}
+.wordmark svg {
+  flex-shrink: 0;
 }
 .wordmark span {
   color: var(--still);

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 
@@ -31,6 +31,10 @@ export const metadata: Metadata = {
   title: "Quiesce — Shutdown assurance",
   description:
     "A deterministic shutdown-assurance test harness for autonomous agents.",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#101418",
 };
 
 export default function RootLayout({
